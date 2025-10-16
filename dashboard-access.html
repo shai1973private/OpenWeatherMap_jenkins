@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Vienna Weather Dashboard Access</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 50px; background: #f5f5f5; }
+        .container { background: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        h1 { color: #1f77b4; }
+        .dashboard-link { display: block; margin: 15px 0; padding: 15px; background: #e7f3ff; border-left: 4px solid #1f77b4; text-decoration: none; color: #333; border-radius: 5px; }
+        .dashboard-link:hover { background: #d1e9ff; }
+        .status { margin: 10px 0; padding: 10px; background: #e8f5e8; border-left: 4px solid #4caf50; border-radius: 5px; }
+        .info { color: #666; font-size: 14px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🌤️ Vienna Weather Monitoring Dashboard</h1>
+        
+        <div class="status">
+            <strong>✅ Dashboard Status: ACTIVE</strong><br>
+            <span class="info">Your Vienna Weather Dashboard is running and accessible</span>
+        </div>
+
+        <h2>📊 Access Your Dashboard:</h2>
+        
+        <a href="http://localhost:5601/app/dashboards" class="dashboard-link" target="_blank">
+            <strong>🎯 Main Dashboard List</strong><br>
+            <span class="info">View all available dashboards</span>
+        </a>
+
+        <a href="http://localhost:5601/app/dashboards#/view/bf287eb0-aab5-11f0-b62c-bf8e374bf7cb" class="dashboard-link" target="_blank">
+            <strong>📈 Vienna Weather Dashboard (Direct)</strong><br>
+            <span class="info">Direct link to your Vienna weather monitoring dashboard</span>
+        </a>
+
+        <a href="http://localhost:5601/app/discover" class="dashboard-link" target="_blank">
+            <strong>🔍 Data Explorer</strong><br>
+            <span class="info">Explore raw weather data and create visualizations</span>
+        </a>
+
+        <a href="http://localhost:5601/app/visualize" class="dashboard-link" target="_blank">
+            <strong>📊 Visualizations</strong><br>
+            <span class="info">View and create weather charts and graphs</span>
+        </a>
+
+        <h2>🚀 Quick Setup Instructions:</h2>
+        <ol>
+            <li>Click on <strong>"Main Dashboard List"</strong> above</li>
+            <li>Look for <strong>"Vienna Weather Dashboard - Auto Generated"</strong></li>
+            <li>Click on the dashboard name to open it</li>
+            <li>Click <strong>"Edit"</strong> to add visualizations</li>
+            <li>Click <strong>"Create visualization"</strong> to add temperature, weather condition charts</li>
+        </ol>
+
+        <div class="status">
+            <strong>📈 Data Status:</strong> Vienna weather data is being collected automatically<br>
+            <strong>🔄 Refresh:</strong> Dashboard auto-refreshes every 5 minutes<br>
+            <strong>⏰ Time Range:</strong> Shows last 24 hours of data
+        </div>
+    </div>
+
+    <script>
+        // Auto-refresh page every 30 seconds to check for updates
+        setTimeout(() => location.reload(), 30000);
+        
+        // Show current time
+        document.addEventListener('DOMContentLoaded', function() {
+            const now = new Date().toLocaleString();
+            document.title = `Vienna Weather Dashboard - ${now}`;
+        });
+    </script>
+</body>
+</html>
