@@ -72,16 +72,6 @@ pipeline {
                         echo "Docker cleanup completed"
                     '''
                     
-                    // Kill any processes that might interfere
-                    bat '''
-                        echo "Terminating potentially interfering processes..."
-                        taskkill /f /im python.exe 2>nul || echo "No Python processes to terminate"
-                        taskkill /f /im node.exe 2>nul || echo "No Node processes to terminate" 
-                        taskkill /f /im java.exe 2>nul || echo "No Java processes to terminate"
-                        taskkill /f /im git.exe 2>nul || echo "No Git processes to terminate"
-                        echo "Process cleanup completed"
-                    '''
-                    
                     // Wait for cleanup to take effect
                     bat 'timeout /t 3 /nobreak >nul'
                     
@@ -119,13 +109,6 @@ pipeline {
                             echo "Workspace: %WORKSPACE%"
                             echo "Build: %BUILD_NUMBER%"
                             echo "Starting comprehensive cleanup process..."
-                            
-                            REM First, stop any background processes that might lock files
-                            echo "Stopping potential file-locking processes..."
-                            taskkill /f /im python.exe 2>nul || echo "No Python processes to kill"
-                            taskkill /f /im node.exe 2>nul || echo "No Node processes to kill"
-                            taskkill /f /im java.exe 2>nul || echo "No Java processes to kill"
-                            taskkill /f /im git.exe 2>nul || echo "No Git processes to kill"
                             
                             REM Stop and clean Docker resources that might lock files
                             echo "Cleaning Docker resources..."
