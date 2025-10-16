@@ -268,8 +268,7 @@ else:
         always {
             script {
                 echo "🧹 Cleaning up pipeline..."
-                echo "Build completed: ${BUILD_VERSION}"
-                echo "Timestamp: ${BUILD_TIMESTAMP}"
+                echo "Build completed at: ${new Date()}"
             }
         }
         
@@ -278,9 +277,9 @@ else:
                 echo "✅ Pipeline completed successfully!"
                 echo "🌟 Vienna Weather Monitoring System deployed and ready!"
                 echo "🌐 Access your services:"
-                echo "   • Elasticsearch: ${ELASTICSEARCH_URL}"
-                echo "   • Kibana: ${KIBANA_URL}"
-                echo "   • RabbitMQ: ${RABBITMQ_URL}"
+                echo "   • Elasticsearch: http://localhost:9200"
+                echo "   • Kibana: http://localhost:5601"
+                echo "   • RabbitMQ: http://localhost:15672"
             }
         }
         
