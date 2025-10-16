@@ -406,20 +406,7 @@ pipeline {
                     '''
                 }
             }
-            post {
-                always {
-                    // Archive deployment artifacts
-                    script {
-                        try {
-                            archiveArtifacts artifacts: 'deploy/**/*', allowEmptyArchive: true
-                        } catch (Exception e) {
-                            echo "Warning: Could not archive deployment artifacts: ${e.getMessage()}"
-                        }
-                    }
-                }
-            }
         }
-    }
     
     post {
         always {
