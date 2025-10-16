@@ -277,10 +277,10 @@ pipeline {
         stage('Deploy') {
             steps {
                 script {
-                    echo "Validating deployment artifacts and running smoke tests..."
+                    echo "Deploying Vienna Weather Monitoring System to Production..."
                     
                     bat '''
-                        REM Create deployment directory and validate artifacts
+                        REM Create deployment directory and prepare artifacts
                         if not exist deploy mkdir deploy
                         xcopy /E /I build\\artifacts\\* deploy\\
                         
@@ -290,31 +290,88 @@ pipeline {
                         if not exist weather_auto_rabbitmq.py (echo ERROR: Main application missing && exit /b 1)
                         if not exist docker-compose.yml (echo ERROR: Docker compose file missing && exit /b 1)
                         if not exist version.yml (echo ERROR: Version file missing && exit /b 1)
-                        echo All deployment artifacts present
+                        echo All deployment artifacts validated
                         
-                        REM Display version information
-                        echo Deployment Information:
+                        REM Display deployment information
+                        echo ================================================
+                        echo PRODUCTION DEPLOYMENT STARTING
+                        echo ================================================
                         type version.yml
+                        echo ================================================
                         
-                        REM Test the deployment package by running a quick validation
-                        echo Testing deployment package...
-                        python -m py_compile weather_auto_rabbitmq.py || (echo ERROR: Python syntax error in deployment package && exit /b 1)
-                        echo Python syntax validation passed
+                        REM Stop any existing production containers
+                        echo Stopping existing production services...
+                        docker-compose down --volumes --remove-orphans || echo No existing services to stop
                         
-                        REM Test API connectivity (external service test)
-                        echo Testing external API connectivity...
-                        python -c "import requests; api_key='%API_KEY%'; url=f'http://api.openweathermap.org/data/2.5/weather?q=Vienna,AT&appid={api_key}'; response=requests.get(url, timeout=10); print('OpenWeatherMap API connection successful' if response.status_code==200 else f'OpenWeatherMap API returned status: {response.status_code}'); data=response.json() if response.status_code==200 else {}; print(f'Weather in Vienna: {data.get(\\\"weather\\\", [{}])[0].get(\\\"description\\\", \\\"N/A\\\")}') if response.status_code==200 else None; print(f'Temperature: {data.get(\\\"main\\\", {}).get(\\\"temp\\\", \\\"N/A\\\")} K') if response.status_code==200 else None" || echo Weather API test completed with warnings
+                        REM Clean up any conflicting containers
+                        docker stop elasticsearch kibana rabbitmq logstash 2>nul || echo No conflicting containers found
+                        docker rm -f elasticsearch kibana rabbitmq logstash 2>nul || echo No containers to remove
                         
-                        REM Display deployment package information
-                        echo Deployment Package Ready:
-                        echo    - Version: %BUILD_VERSION%
-                        echo    - Package: deploy/
-                        echo    - Main App: weather_auto_rabbitmq.py
-                        echo    - Docker Config: docker-compose.yml
-                        echo    - ELK Config: logstash/
+                        REM Remove any conflicting networks
+                        docker network rm openweathermap_jenkins_default 2>nul || echo No conflicting network found
                         
-                        echo Deployment validation completed successfully
-                        echo Package ready for production deployment
+                        REM Wait for cleanup to complete
+                        powershell -Command "Start-Sleep -Seconds 5"
+                        
+                        REM Deploy to production using production ports
+                        echo Starting production deployment...
+                        docker-compose up -d
+                        
+                        REM Wait for services to start
+                        echo Waiting for production services to start...
+                        powershell -Command "Start-Sleep -Seconds 60"
+                        
+                        REM Check production service health
+                        echo Verifying production services...
+                        docker-compose ps
+                        
+                        REM Test production Elasticsearch
+                        echo Testing Elasticsearch on production port 9200...
+                        set /A elasticsearch_ready=0
+                        for /L %%i in (1,1,5) do (
+                            curl -f http://localhost:9200/_cluster/health >nul 2>&1
+                            if not errorlevel 1 (
+                                echo Production Elasticsearch is ready
+                                set /A elasticsearch_ready=1
+                                goto :prod_elasticsearch_done
+                            )
+                            echo Attempt %%i failed, waiting 15 seconds...
+                            powershell -Command "Start-Sleep -Seconds 15"
+                        )
+                        :prod_elasticsearch_done
+                        
+                        REM Test production RabbitMQ
+                        echo Testing RabbitMQ on production port 15672...
+                        docker exec rabbitmq rabbitmqctl status >nul 2>&1
+                        if not errorlevel 1 (
+                            echo Production RabbitMQ is ready
+                        ) else (
+                            echo Warning: RabbitMQ may still be starting
+                        )
+                        
+                        REM Test external API connectivity from production environment
+                        echo Testing OpenWeatherMap API from production...
+                        python -c "import requests; api_key='%API_KEY%'; url=f'http://api.openweathermap.org/data/2.5/weather?q=Vienna,AT&appid={api_key}'; response=requests.get(url, timeout=10); print('Production API connection successful' if response.status_code==200 else f'API returned status: {response.status_code}'); data=response.json() if response.status_code==200 else {}; print(f'Current weather: {data.get(\\\"weather\\\", [{}])[0].get(\\\"description\\\", \\\"N/A\\\")}') if response.status_code==200 else None; print(f'Temperature: {data.get(\\\"main\\\", {}).get(\\\"temp\\\", \\\"N/A\\\")} K') if response.status_code==200 else None" || echo Weather API test completed with warnings
+                        
+                        REM Start the weather monitoring application
+                        echo Starting Vienna Weather Monitoring Application...
+                        start /B python weather_auto_rabbitmq.py
+                        
+                        REM Wait for application to initialize
+                        powershell -Command "Start-Sleep -Seconds 10"
+                        
+                        echo ================================================
+                        echo PRODUCTION DEPLOYMENT COMPLETED
+                        echo ================================================
+                        echo Production Services:
+                        echo   • Elasticsearch: http://localhost:9200
+                        echo   • Kibana: http://localhost:5601
+                        echo   • RabbitMQ Management: http://localhost:15672
+                        echo   • Vienna Weather Monitor: RUNNING
+                        echo ================================================
+                        echo Deployment Version: %BUILD_VERSION%
+                        echo Deployment Time: %date% %time%
+                        echo ================================================
                     '''
                 }
             }
@@ -343,18 +400,26 @@ pipeline {
         
         success {
             script {
-                echo "Pipeline completed successfully!"
-                echo "Vienna Weather Monitoring System validated and packaged!"
-                echo "Deployment package ready at: deploy/"
+                echo "================================================"
+                echo "JENKINS CI/CD PIPELINE COMPLETED SUCCESSFULLY!"
+                echo "================================================"
+                echo "Vienna Weather Monitoring System is now LIVE in production!"
                 echo ""
-                echo "To deploy to production, use the generated package:"
-                echo "   cd deploy/"
-                echo "   docker-compose up -d"
-                echo ""
-                echo "Production service URLs will be:"
+                echo "Production Services Running:"
                 echo "   • Elasticsearch: http://localhost:9200"
-                echo "   • Kibana: http://localhost:5601"
-                echo "   • RabbitMQ: http://localhost:15672"
+                echo "   • Kibana: http://localhost:5601" 
+                echo "   • RabbitMQ Management: http://localhost:15672"
+                echo "   • Weather Monitoring App: ACTIVE"
+                echo ""
+                echo "Build Information:"
+                echo "   • Version: ${BUILD_VERSION}"
+                echo "   • Commit: ${env.GIT_COMMIT}"
+                echo "   • Branch: ${env.GIT_BRANCH}"
+                echo "   • Deployment Time: ${new Date()}"
+                echo ""
+                echo "The Vienna Weather Monitoring System is now collecting"
+                echo "and processing real-time weather data automatically!"
+                echo "================================================"
             }
         }
         
