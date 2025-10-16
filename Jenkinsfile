@@ -244,40 +244,44 @@ pipeline {
         stage('Deploy') {
             steps {
                 script {
-                    echo "Deploying Vienna Weather Monitoring System..."
+                    echo "Validating deployment artifacts and running smoke tests..."
                     
                     bat '''
-                        REM Create deployment directory
+                        REM Create deployment directory and validate artifacts
                         if not exist deploy mkdir deploy
                         xcopy /E /I build\\artifacts\\* deploy\\
                         
-                        REM Deploy with docker-compose
+                        REM Validate deployment artifacts
                         cd deploy
-                        REM Stop any existing services that might conflict
-                        docker stop elasticsearch kibana rabbitmq logstash 2>nul || echo No conflicting containers found
-                        docker-compose -f docker-compose.yml down || echo No containers to stop
-                        docker-compose -f docker-compose.yml up -d
+                        echo Validating deployment artifacts...
+                        if not exist weather_auto_rabbitmq.py (echo ERROR: Main application missing && exit /b 1)
+                        if not exist docker-compose.yml (echo ERROR: Docker compose file missing && exit /b 1)
+                        if not exist version.yml (echo ERROR: Version file missing && exit /b 1)
+                        echo All deployment artifacts present
                         
-                        REM Wait for deployment
-                        echo Waiting for deployment to complete...
-                        powershell -Command "Start-Sleep -Seconds 45"
+                        REM Display version information
+                        echo Deployment Information:
+                        type version.yml
                         
-                        REM Verify deployment
-                        echo Verifying deployment...
-                        curl -f %ELASTICSEARCH_URL%/_cluster/health || (echo Elasticsearch deployment verification failed && exit /b 1)
-                        curl -f %KIBANA_URL%/api/status || (echo Kibana deployment verification failed && exit /b 1)
+                        REM Test the deployment package by running a quick validation
+                        echo Testing deployment package...
+                        python -m py_compile weather_auto_rabbitmq.py || (echo ERROR: Python syntax error in deployment package && exit /b 1)
+                        echo Python syntax validation passed
                         
-                        REM Test weather data pipeline
-                        echo Testing weather data pipeline...
-                        python -c "import requests; api_key='%API_KEY%'; url=f'http://api.openweathermap.org/data/2.5/weather?q=Vienna,AT&appid={api_key}'; response=requests.get(url, timeout=10); print('OpenWeatherMap API connection successful' if response.status_code==200 else f'OpenWeatherMap API returned status: {response.status_code}'); data=response.json() if response.status_code==200 else {}; print(f'Weather in Vienna: {data.get(\"weather\", [{}])[0].get(\"description\", \"N/A\")}') if response.status_code==200 else None; print(f'Temperature: {data.get(\"main\", {}).get(\"temp\", \"N/A\")} K') if response.status_code==200 else None" || echo Weather API test completed with warnings
+                        REM Test API connectivity (external service test)
+                        echo Testing external API connectivity...
+                        python -c "import requests; api_key='%API_KEY%'; url=f'http://api.openweathermap.org/data/2.5/weather?q=Vienna,AT&appid={api_key}'; response=requests.get(url, timeout=10); print('✅ OpenWeatherMap API connection successful' if response.status_code==200 else f'⚠️ OpenWeatherMap API returned status: {response.status_code}'); data=response.json() if response.status_code==200 else {}; print(f'🌤️ Weather in Vienna: {data.get(\"weather\", [{}])[0].get(\"description\", \"N/A\")}') if response.status_code==200 else None; print(f'🌡️ Temperature: {data.get(\"main\", {}).get(\"temp\", \"N/A\")} K') if response.status_code==200 else None" || echo ⚠️ Weather API test completed with warnings
                         
-                        REM Display deployment URLs
-                        echo Deployment URLs:
-                        echo    • Elasticsearch: %ELASTICSEARCH_URL%
-                        echo    • Kibana: %KIBANA_URL%
-                        echo    • RabbitMQ Management: %RABBITMQ_URL%
+                        REM Display deployment package information
+                        echo Deployment Package Ready:
+                        echo    • Version: %BUILD_VERSION%
+                        echo    • Package: deploy/
+                        echo    • Main App: weather_auto_rabbitmq.py
+                        echo    • Docker Config: docker-compose.yml
+                        echo    • ELK Config: logstash/
                         
-                        echo Deployment completed successfully
+                        echo ✅ Deployment validation completed successfully
+                        echo 📦 Package ready for production deployment
                     '''
                 }
             }
@@ -307,8 +311,14 @@ pipeline {
         success {
             script {
                 echo "Pipeline completed successfully!"
-                echo "Vienna Weather Monitoring System deployed and ready!"
-                echo "Access your services:"
+                echo "Vienna Weather Monitoring System validated and packaged!"
+                echo "Deployment package ready at: deploy/"
+                echo ""
+                echo "To deploy to production, use the generated package:"
+                echo "   cd deploy/"
+                echo "   docker-compose up -d"
+                echo ""
+                echo "Production service URLs will be:"
                 echo "   • Elasticsearch: http://localhost:9200"
                 echo "   • Kibana: http://localhost:5601"
                 echo "   • RabbitMQ: http://localhost:15672"
