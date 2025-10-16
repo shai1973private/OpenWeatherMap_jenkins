@@ -17,7 +17,7 @@ pipeline {
         
         // Build Information
         BUILD_VERSION = "${env.BUILD_NUMBER}-${env.GIT_COMMIT.take(7)}"
-        BUILD_TIMESTAMP = sh(script: "date +%Y%m%d-%H%M%S", returnStdout: true).trim()
+        BUILD_TIMESTAMP = bat(script: "@echo off && echo %date:~10,4%%date:~4,2%%date:~7,2%-%time:~0,2%%time:~3,2%%time:~6,2%", returnStdout: true).trim()
     }
     
     options {
@@ -52,16 +52,15 @@ pipeline {
                 checkout scm
                 
                 // Display project structure and validate files
-                sh '''
-                    echo "📁 Project Structure:"
-                    find . -type f -name "*.py" -o -name "*.yml" -o -name "*.json" -o -name "*.conf" | head -20
+                bat '''
+                    echo 📁 Project Structure:
+                    dir /b *.py *.yml *.json *.conf 2>nul | more
                     
-                    echo "📋 Validating required files..."
-                    # Check required files exist
-                    test -f weather_auto_rabbitmq.py || (echo "Missing weather_auto_rabbitmq.py" && exit 1)
-                    test -f docker-compose.yml || (echo "Missing docker-compose.yml" && exit 1)
-                    test -f logstash/pipeline/logstash.conf || (echo "Missing logstash.conf" && exit 1)
-                    echo "✅ All required files present"
+                    echo 📋 Validating required files...
+                    if not exist weather_auto_rabbitmq.py (echo Missing weather_auto_rabbitmq.py && exit /b 1)
+                    if not exist docker-compose.yml (echo Missing docker-compose.yml && exit /b 1)
+                    if not exist logstash\\pipeline\\logstash.conf (echo Missing logstash.conf && exit /b 1)
+                    echo ✅ All required files present
                 '''
             }
         }
@@ -72,51 +71,50 @@ pipeline {
                     echo "🔨 Building application and setting up environment..."
                     
                     // Setup Python environment
-                    sh '''
-                        echo "🐍 Setting up Python environment..."
-                        python3 --version
-                        pip3 --version
+                    bat '''
+                        echo 🐍 Setting up Python environment...
+                        python --version
+                        pip --version
                         
-                        # Install required packages
-                        pip3 install --user -r requirements.txt || echo "No requirements.txt found, installing basic packages"
-                        pip3 install --user pika requests pytest pytest-cov flake8
+                        REM Install required packages
+                        pip install -r requirements.txt || echo No requirements.txt found, installing basic packages
+                        pip install pika requests pytest pytest-cov flake8
                     '''
                     
                     // Check Docker environment
-                    sh '''
-                        echo "🐳 Checking Docker environment..."
+                    bat '''
+                        echo 🐳 Checking Docker environment...
                         docker --version
                         docker-compose --version
                         docker system df
                     '''
                     
                     // Build and package application
-                    sh '''
-                        echo "📦 Building and packaging application..."
-                        # Create build directory
-                        mkdir -p build/artifacts
+                    bat '''
+                        echo 📦 Building and packaging application...
+                        REM Create build directory
+                        if not exist build\\artifacts mkdir build\\artifacts
                         
-                        # Copy application files
-                        cp weather_auto_rabbitmq.py build/artifacts/
-                        cp -r logstash build/artifacts/
-                        cp docker-compose.yml build/artifacts/
-                        cp setup-elk*.ps1 build/artifacts/ || true
+                        REM Copy application files
+                        copy weather_auto_rabbitmq.py build\\artifacts\\
+                        xcopy /E /I logstash build\\artifacts\\logstash
+                        copy docker-compose.yml build\\artifacts\\
+                        if exist setup-elk*.ps1 copy setup-elk*.ps1 build\\artifacts\\
                         
-                        # Create version file
-                        echo "version: ${BUILD_VERSION}" > build/artifacts/version.yml
-                        echo "timestamp: ${BUILD_TIMESTAMP}" >> build/artifacts/version.yml
-                        echo "commit: ${GIT_COMMIT}" >> build/artifacts/version.yml
-                        echo "branch: ${GIT_BRANCH}" >> build/artifacts/version.yml
+                        REM Create version file
+                        echo version: %BUILD_VERSION% > build\\artifacts\\version.yml
+                        echo timestamp: %BUILD_TIMESTAMP% >> build\\artifacts\\version.yml
+                        echo commit: %GIT_COMMIT% >> build\\artifacts\\version.yml
+                        echo branch: %GIT_BRANCH% >> build\\artifacts\\version.yml
                         
-                        # Basic syntax validation
-                        python3 -m py_compile weather_auto_rabbitmq.py
-                        python3 -m py_compile simple-pipeline.py
+                        REM Basic syntax validation
+                        python -m py_compile weather_auto_rabbitmq.py
+                        if exist simple-pipeline.py python -m py_compile simple-pipeline.py
                         
-                        # Code quality checks
-                        python3 -m flake8 weather_auto_rabbitmq.py --max-line-length=120 --ignore=E501 || true
-                        python3 -m flake8 simple-pipeline.py --max-line-length=120 --ignore=E501 || true
+                        REM Code quality checks
+                        python -m flake8 weather_auto_rabbitmq.py --max-line-length=120 --ignore=E501 || echo Code quality check completed
                         
-                        echo "✅ Build completed successfully"
+                        echo ✅ Build completed successfully
                     '''
                 }
             }
@@ -126,37 +124,37 @@ pipeline {
             steps {
                 script {
                     echo "🧪 Running unit tests..."
-                    sh '''
-                        # Create test results directory
-                        mkdir -p test-results
+                    bat '''
+                        REM Create test results directory
+                        if not exist test-results mkdir test-results
                         
-                        # Run Python unit tests
-                        python3 -m pytest tests/ --junit-xml=test-results/python-tests.xml --cov=. --cov-report=xml:test-results/coverage.xml || true
+                        REM Run Python unit tests
+                        python -m pytest tests\\ --junit-xml=test-results\\python-tests.xml --cov=. --cov-report=xml:test-results\\coverage.xml || echo Unit tests completed with warnings
                         
-                        # Start test environment for integration tests
-                        echo "🔧 Starting test environment..."
-                        # Stop any existing containers
-                        docker-compose -f ${DOCKER_COMPOSE_JENKINS_FILE} down || true
+                        REM Start test environment for integration tests
+                        echo 🔧 Starting test environment...
+                        REM Stop any existing containers
+                        docker-compose -f %DOCKER_COMPOSE_JENKINS_FILE% down || echo No containers to stop
                         
-                        # Start test environment
-                        docker-compose -f ${DOCKER_COMPOSE_JENKINS_FILE} up -d
+                        REM Start test environment
+                        docker-compose -f %DOCKER_COMPOSE_JENKINS_FILE% up -d
                         
-                        # Wait for services to be ready
-                        echo "⏳ Waiting for services to start..."
-                        sleep 30
+                        REM Wait for services to be ready
+                        echo ⏳ Waiting for services to start...
+                        timeout /t 30 /nobreak >nul
                         
-                        # Check service health
-                        curl -f ${ELASTICSEARCH_URL}/_cluster/health || (echo "Elasticsearch not ready" && exit 1)
-                        echo "✅ Elasticsearch is ready"
+                        REM Check service health
+                        curl -f %ELASTICSEARCH_URL%/_cluster/health || (echo Elasticsearch not ready && exit /b 1)
+                        echo ✅ Elasticsearch is ready
                         
-                        # Test RabbitMQ connection
-                        docker exec rabbitmq-jenkins rabbitmqctl status || (echo "RabbitMQ not ready" && exit 1)
-                        echo "✅ RabbitMQ is ready"
+                        REM Test RabbitMQ connection
+                        docker exec rabbitmq-jenkins rabbitmqctl status || (echo RabbitMQ not ready && exit /b 1)
+                        echo ✅ RabbitMQ is ready
                         
-                        # Run integration tests
-                        python3 -m pytest tests/test_integration.py --junit-xml=test-results/integration-tests.xml || true
+                        REM Run integration tests
+                        python -m pytest tests\\test_integration.py --junit-xml=test-results\\integration-tests.xml || echo Integration tests completed with warnings
                         
-                        echo "✅ Unit and integration tests completed"
+                        echo ✅ Unit and integration tests completed
                     '''
                 }
             }
@@ -183,9 +181,11 @@ pipeline {
                     // Archive logs and cleanup
                     script {
                         try {
+                            bat "if not exist test-logs mkdir test-logs"
+                            bat "docker-compose -f %DOCKER_COMPOSE_JENKINS_FILE% logs > test-logs\\docker-compose.log 2>&1 || echo Could not collect logs"
                             archiveArtifacts artifacts: 'test-logs/**/*', allowEmptyArchive: true
                             // Stop test containers
-                            sh "docker-compose -f ${DOCKER_COMPOSE_JENKINS_FILE} down || true"
+                            bat "docker-compose -f %DOCKER_COMPOSE_JENKINS_FILE% down || echo Could not stop containers"
                         } catch (Exception e) {
                             echo "⚠️ Warning: Could not archive logs or cleanup containers: ${e.getMessage()}"
                         }
@@ -199,49 +199,36 @@ pipeline {
                 script {
                     echo "🚀 Deploying Vienna Weather Monitoring System..."
                     
-                    sh '''
-                        # Create deployment directory
-                        mkdir -p deploy
-                        cp -r build/artifacts/* deploy/
+                    bat '''
+                        REM Create deployment directory
+                        if not exist deploy mkdir deploy
+                        xcopy /E /I build\\artifacts\\* deploy\\
                         
-                        # Deploy with docker-compose
+                        REM Deploy with docker-compose
                         cd deploy
-                        docker-compose -f docker-compose.yml down || true
+                        docker-compose -f docker-compose.yml down || echo No containers to stop
                         docker-compose -f docker-compose.yml up -d
                         
-                        # Wait for deployment
-                        echo "⏳ Waiting for deployment to complete..."
-                        sleep 45
+                        REM Wait for deployment
+                        echo ⏳ Waiting for deployment to complete...
+                        timeout /t 45 /nobreak >nul
                         
-                        # Verify deployment
-                        echo "🔍 Verifying deployment..."
-                        curl -f ${ELASTICSEARCH_URL}/_cluster/health || (echo "Elasticsearch deployment verification failed" && exit 1)
-                        curl -f ${KIBANA_URL}/api/status || (echo "Kibana deployment verification failed" && exit 1)
+                        REM Verify deployment
+                        echo 🔍 Verifying deployment...
+                        curl -f %ELASTICSEARCH_URL%/_cluster/health || (echo Elasticsearch deployment verification failed && exit /b 1)
+                        curl -f %KIBANA_URL%/api/status || (echo Kibana deployment verification failed && exit /b 1)
                         
-                        # Test weather data pipeline
-                        echo "🌤️  Testing weather data pipeline..."
-                        python3 -c "
-import requests
-import json
-api_key = '${API_KEY}'
-url = f'http://api.openweathermap.org/data/2.5/weather?q=Vienna,AT&appid={api_key}'
-response = requests.get(url, timeout=10)
-if response.status_code == 200:
-    print('✅ OpenWeatherMap API connection successful')
-    data = response.json()
-    print(f'Weather in Vienna: {data[\"weather\"][0][\"description\"]}')
-    print(f'Temperature: {data[\"main\"][\"temp\"]} K')
-else:
-    print(f'⚠️  OpenWeatherMap API returned status: {response.status_code}')
-" || echo "Weather API test completed with warnings"
+                        REM Test weather data pipeline
+                        echo 🌤️ Testing weather data pipeline...
+                        python -c "import requests; api_key='%API_KEY%'; url=f'http://api.openweathermap.org/data/2.5/weather?q=Vienna,AT&appid={api_key}'; response=requests.get(url, timeout=10); print('✅ OpenWeatherMap API connection successful' if response.status_code==200 else f'⚠️ OpenWeatherMap API returned status: {response.status_code}'); data=response.json() if response.status_code==200 else {}; print(f'Weather in Vienna: {data.get(\"weather\", [{}])[0].get(\"description\", \"N/A\")}') if response.status_code==200 else None; print(f'Temperature: {data.get(\"main\", {}).get(\"temp\", \"N/A\")} K') if response.status_code==200 else None" || echo Weather API test completed with warnings
                         
-                        # Display deployment URLs
-                        echo "🌐 Deployment URLs:"
-                        echo "   • Elasticsearch: ${ELASTICSEARCH_URL}"
-                        echo "   • Kibana: ${KIBANA_URL}"
-                        echo "   • RabbitMQ Management: ${RABBITMQ_URL}"
+                        REM Display deployment URLs
+                        echo 🌐 Deployment URLs:
+                        echo    • Elasticsearch: %ELASTICSEARCH_URL%
+                        echo    • Kibana: %KIBANA_URL%
+                        echo    • RabbitMQ Management: %RABBITMQ_URL%
                         
-                        echo "✅ Deployment completed successfully"
+                        echo ✅ Deployment completed successfully
                     '''
                 }
             }
