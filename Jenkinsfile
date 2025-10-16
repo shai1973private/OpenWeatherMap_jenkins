@@ -168,18 +168,28 @@ pipeline {
                         echo Logstash status checked
                         
                         REM Test RabbitMQ connection with better error handling
-                        docker ps --filter "name=rabbitmq-jenkins" --format "{{.Status}}" | findstr "Up" >nul
+                        echo Checking RabbitMQ container status...
+                        docker ps -a --filter "name=rabbitmq-jenkins" --format "table {{.Names}}\t{{.Status}}"
+                        
+                        REM Try to execute rabbitmqctl status directly
+                        docker exec rabbitmq-jenkins rabbitmqctl status >nul 2>&1
                         if errorlevel 1 (
-                            echo RabbitMQ container is not running, checking logs...
-                            docker logs rabbitmq-jenkins
+                            echo RabbitMQ not ready, checking container logs...
+                            docker logs --tail 20 rabbitmq-jenkins
                             echo Attempting to restart RabbitMQ...
                             docker-compose -f %DOCKER_COMPOSE_JENKINS_FILE% restart rabbitmq
-                            powershell -Command "Start-Sleep -Seconds 15"
-                        )
-                        
-                        REM Final RabbitMQ check
-                        docker exec rabbitmq-jenkins rabbitmqctl status || (echo RabbitMQ not ready, continuing with limited testing && set RABBITMQ_AVAILABLE=false)
-                        if not defined RABBITMQ_AVAILABLE (
+                            powershell -Command "Start-Sleep -Seconds 20"
+                            
+                            REM Final attempt
+                            docker exec rabbitmq-jenkins rabbitmqctl status >nul 2>&1
+                            if errorlevel 1 (
+                                echo RabbitMQ not ready, continuing with limited testing
+                                set RABBITMQ_AVAILABLE=false
+                            ) else (
+                                echo RabbitMQ is ready after restart
+                                set RABBITMQ_AVAILABLE=true
+                            )
+                        ) else (
                             echo RabbitMQ is ready
                             set RABBITMQ_AVAILABLE=true
                         )
