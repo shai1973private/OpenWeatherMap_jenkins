@@ -150,10 +150,7 @@ pipeline {
                         REM Create test results directory
                         if not exist test-results mkdir test-results
                         
-                        REM Run Python unit tests
-                        python -m pytest tests\\ --junit-xml=test-results\\python-tests.xml --cov=. --cov-report=xml:test-results\\coverage.xml || echo Unit tests completed with warnings
-                        
-                        REM Start test environment for integration tests
+                        REM Start test environment first for integration tests
                         echo Starting test environment...
                         REM Force stop and remove any existing containers and networks
                         docker-compose -f %DOCKER_COMPOSE_JENKINS_FILE% down --volumes --remove-orphans || echo No containers to stop
@@ -233,12 +230,18 @@ pipeline {
                             set RABBITMQ_AVAILABLE=true
                         )
                         
-                        REM Run integration tests
                         REM Set testing environment variables for integration tests
                         set ELASTICSEARCH_URL=http://localhost:9201
                         set KIBANA_URL=http://localhost:5602
                         set RABBITMQ_URL=http://localhost:15673
                         set LOGSTASH_URL=http://localhost:9601
+                        
+                        REM Run unit tests first (those that don't need containers)
+                        echo Running unit tests...
+                        python -m pytest tests\\test_weather_system.py --junit-xml=test-results\\unit-tests.xml --cov=. --cov-report=xml:test-results\\coverage.xml || echo Unit tests completed with warnings
+                        
+                        REM Run integration tests (those that need containers)
+                        echo Running integration tests...
                         python -m pytest tests\\test_integration.py --junit-xml=test-results\\integration-tests.xml || echo Integration tests completed with warnings
                         
                         echo Unit and integration tests completed
