@@ -3,7 +3,7 @@ Write-Host "🛑 Stopping existing containers..." -ForegroundColor Yellow
 docker-compose down
 
 # Start the ELK stack
-Write-Host "🚀 Starting ELK Stack with RabbitMQ..." -ForegroundColor Green
+Write-Host "Starting ELK Stack with RabbitMQ..." -ForegroundColor Green
 docker-compose up -d
 
 Write-Host "⏳ Waiting for services to start..." -ForegroundColor Cyan
@@ -15,31 +15,31 @@ Write-Host "🔍 Checking service status..." -ForegroundColor Cyan
 Write-Host "Checking Elasticsearch..." -ForegroundColor Yellow
 try {
     $null = Invoke-RestMethod -Uri "http://localhost:9200/_cluster/health" -Method Get -TimeoutSec 10 -ErrorAction SilentlyContinue
-    Write-Host "✅ Elasticsearch is running on http://localhost:9200" -ForegroundColor Green
+    Write-Host "Elasticsearch is running on http://localhost:9200" -ForegroundColor Green
 } catch {
-    Write-Host "❌ Elasticsearch is not responding: $($_.Exception.Message)" -ForegroundColor Red
+    Write-Host "Elasticsearch is not responding: $($_.Exception.Message)" -ForegroundColor Red
 }
 
 Write-Host "Checking Kibana..." -ForegroundColor Yellow
 try {
     $null = Invoke-RestMethod -Uri "http://localhost:5601/api/status" -Method Get -TimeoutSec 10 -ErrorAction SilentlyContinue
-    Write-Host "✅ Kibana is running on http://localhost:5601" -ForegroundColor Green
+    Write-Host "Kibana is running on http://localhost:5601" -ForegroundColor Green
 } catch {
-    Write-Host "❌ Kibana is not responding: $($_.Exception.Message)" -ForegroundColor Red
+    Write-Host "Kibana is not responding: $($_.Exception.Message)" -ForegroundColor Red
 }
 
 Write-Host "Checking RabbitMQ..." -ForegroundColor Yellow
 try {
     $null = Invoke-WebRequest -Uri "http://localhost:15672" -Method Get -UseBasicParsing -TimeoutSec 10 -ErrorAction SilentlyContinue -NoProxy
-    Write-Host "✅ RabbitMQ Management is running on http://localhost:15672" -ForegroundColor Green
+    Write-Host "RabbitMQ Management is running on http://localhost:15672" -ForegroundColor Green
 } catch {
-    Write-Host "❌ RabbitMQ Management is not responding: $($_.Exception.Message)" -ForegroundColor Red
+    Write-Host "RabbitMQ Management is not responding: $($_.Exception.Message)" -ForegroundColor Red
 }
 
 Write-Host ""
-Write-Host "🎉 ELK Stack Setup Complete!" -ForegroundColor Green
+Write-Host "ELK Stack Setup Complete!" -ForegroundColor Green
 Write-Host "=============================="
-Write-Host "📊 Services:"
+Write-Host "Services:"
 Write-Host "   • Elasticsearch: http://localhost:9200" -ForegroundColor White
 Write-Host "   • Kibana: http://localhost:5601" -ForegroundColor White
 Write-Host "   • RabbitMQ Management: http://localhost:15672 (guest/guest)" -ForegroundColor White
