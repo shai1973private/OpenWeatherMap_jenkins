@@ -437,7 +437,7 @@ pipeline {
                         
                         REM Setup Kibana Dashboard automatically
                         echo Setting up Kibana Dashboard and Data Views...
-                        powershell -ExecutionPolicy Bypass -File ../setup-kibana-dashboard.ps1
+                        powershell -ExecutionPolicy Bypass -File ../setup-dashboard-simple.ps1
                         
                         echo ================================================
                         echo PRODUCTION DEPLOYMENT COMPLETED

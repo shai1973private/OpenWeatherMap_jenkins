@@ -131,10 +131,14 @@ if ($dashboardResponse) {
     Write-Host "ℹ️  Dashboard may already exist, checking..." -ForegroundColor Yellow
     
     # Check for existing dashboard
-    $existingDashboards = Invoke-SafeRestMethod -Uri "$KibanaUrl/api/saved_objects/_find?type=dashboard&search=Vienna%20Weather"
+    $searchUrl = "$KibanaUrl/api/saved_objects/_find?type=dashboard"
+    $existingDashboards = Invoke-SafeRestMethod -Uri $searchUrl
     if ($existingDashboards -and $existingDashboards.saved_objects.Count -gt 0) {
-        $dashboardId = $existingDashboards.saved_objects[0].id
-        Write-Host "✅ Using existing dashboard: $dashboardId" -ForegroundColor Green
+        $viennaDashboard = $existingDashboards.saved_objects | Where-Object { $_.attributes.title -like "*Vienna*" }
+        if ($viennaDashboard) {
+            $dashboardId = $viennaDashboard[0].id
+            Write-Host "✅ Using existing dashboard: $dashboardId" -ForegroundColor Green
+        }
     }
 }
 
@@ -157,7 +161,8 @@ if ($indexPatternResponse) {
 }
 
 # Step 4: Verify setup and provide information
-Write-Host "`n🎯 Kibana Setup Complete!" -ForegroundColor Green
+Write-Host ""
+Write-Host "🎯 Kibana Setup Complete!" -ForegroundColor Green
 Write-Host "================================================" -ForegroundColor Green
 
 # Check if we have weather data
@@ -168,18 +173,21 @@ if ($weatherDataCheck -and $weatherDataCheck.count -gt 0) {
     Write-Host "⚠️  No weather data found yet. Data will appear as the monitoring system runs." -ForegroundColor Yellow
 }
 
-Write-Host "`n🌐 Access Your Dashboard:" -ForegroundColor Cyan
+Write-Host ""
+Write-Host "🌐 Access Your Dashboard:" -ForegroundColor Cyan
 Write-Host "   • Dashboard: $KibanaUrl/app/dashboards" -ForegroundColor White
 Write-Host "   • Data Explorer: $KibanaUrl/app/discover" -ForegroundColor White
 Write-Host "   • Visualizations: $KibanaUrl/app/visualize" -ForegroundColor White
 Write-Host "   • Dev Tools: $KibanaUrl/app/dev_tools" -ForegroundColor White
 
-Write-Host "`n📊 Dashboard Features:" -ForegroundColor Cyan
+Write-Host ""
+Write-Host "📊 Dashboard Features:" -ForegroundColor Cyan
 Write-Host "   • Auto-refresh every 5 minutes" -ForegroundColor White
 Write-Host "   • Shows last 24 hours of data" -ForegroundColor White
 Write-Host "   • Ready for custom visualizations" -ForegroundColor White
 
-Write-Host "`n🚀 Next Steps:" -ForegroundColor Cyan
+Write-Host ""
+Write-Host "🚀 Next Steps:" -ForegroundColor Cyan
 Write-Host "   1. Open the dashboard URL above" -ForegroundColor White
 Write-Host "   2. Click 'Edit' to add visualizations" -ForegroundColor White
 Write-Host "   3. Create charts for temperature, humidity, weather conditions" -ForegroundColor White
