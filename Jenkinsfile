@@ -270,18 +270,18 @@ pipeline {
                         
                         REM Test API connectivity (external service test)
                         echo Testing external API connectivity...
-                        python -c "import requests; api_key='%API_KEY%'; url=f'http://api.openweathermap.org/data/2.5/weather?q=Vienna,AT&appid={api_key}'; response=requests.get(url, timeout=10); print('✅ OpenWeatherMap API connection successful' if response.status_code==200 else f'⚠️ OpenWeatherMap API returned status: {response.status_code}'); data=response.json() if response.status_code==200 else {}; print(f'🌤️ Weather in Vienna: {data.get(\"weather\", [{}])[0].get(\"description\", \"N/A\")}') if response.status_code==200 else None; print(f'🌡️ Temperature: {data.get(\"main\", {}).get(\"temp\", \"N/A\")} K') if response.status_code==200 else None" || echo ⚠️ Weather API test completed with warnings
+                        python -c "import requests; api_key='%API_KEY%'; url=f'http://api.openweathermap.org/data/2.5/weather?q=Vienna,AT&appid={api_key}'; response=requests.get(url, timeout=10); print('OpenWeatherMap API connection successful' if response.status_code==200 else f'OpenWeatherMap API returned status: {response.status_code}'); data=response.json() if response.status_code==200 else {}; print(f'Weather in Vienna: {data.get(\"weather\", [{}])[0].get(\"description\", \"N/A\")}') if response.status_code==200 else None; print(f'Temperature: {data.get(\"main\", {}).get(\"temp\", \"N/A\")} K') if response.status_code==200 else None" || echo Weather API test completed with warnings
                         
                         REM Display deployment package information
                         echo Deployment Package Ready:
-                        echo    • Version: %BUILD_VERSION%
-                        echo    • Package: deploy/
-                        echo    • Main App: weather_auto_rabbitmq.py
-                        echo    • Docker Config: docker-compose.yml
-                        echo    • ELK Config: logstash/
+                        echo    - Version: %BUILD_VERSION%
+                        echo    - Package: deploy/
+                        echo    - Main App: weather_auto_rabbitmq.py
+                        echo    - Docker Config: docker-compose.yml
+                        echo    - ELK Config: logstash/
                         
-                        echo ✅ Deployment validation completed successfully
-                        echo 📦 Package ready for production deployment
+                        echo Deployment validation completed successfully
+                        echo Package ready for production deployment
                     '''
                 }
             }
