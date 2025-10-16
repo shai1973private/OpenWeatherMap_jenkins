@@ -213,8 +213,6 @@ class SimpleViennaWeatherPipeline:
                             print(f"WARNING: {container} container not found")
                 else:
                     print("WARNING: Docker not accessible")
-                else:
-                    print("WARNING: Docker not accessible")
             except Exception:
                 print("WARNING: Docker not available")
             
