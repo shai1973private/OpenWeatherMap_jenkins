@@ -139,29 +139,52 @@ pipeline {
                         
                         REM Start test environment for integration tests
                         echo Starting test environment...
-                        REM Stop any existing containers and remove conflicting services
-                        docker-compose -f %DOCKER_COMPOSE_JENKINS_FILE% down || echo No containers to stop
+                        REM Force stop and remove any existing containers and networks
+                        docker-compose -f %DOCKER_COMPOSE_JENKINS_FILE% down --volumes --remove-orphans || echo No containers to stop
                         
-                        REM Stop any existing services that might be using the same ports
+                        REM Force remove any conflicting containers by name
                         docker stop elasticsearch kibana rabbitmq logstash 2>nul || echo No conflicting containers found
-                        docker stop elasticsearch-jenkins kibana-jenkins rabbitmq-jenkins logstash-jenkins 2>nul || echo No Jenkins containers found
-                        docker rm elasticsearch kibana rabbitmq logstash 2>nul || echo No containers to remove
-                        docker rm elasticsearch-jenkins kibana-jenkins rabbitmq-jenkins logstash-jenkins 2>nul || echo No Jenkins containers to remove
+                        docker stop elasticsearch-jenkins kibana-jenkins rabbitmq-jenkins logstash-jenkins test-runner-jenkins 2>nul || echo No Jenkins containers found
+                        docker rm -f elasticsearch kibana rabbitmq logstash 2>nul || echo No containers to remove
+                        docker rm -f elasticsearch-jenkins kibana-jenkins rabbitmq-jenkins logstash-jenkins test-runner-jenkins 2>nul || echo No Jenkins containers to remove
+                        
+                        REM Remove any orphaned networks
+                        docker network rm jenkins_elk_network 2>nul || echo No network to remove
+                        
+                        REM Wait a moment for cleanup to complete
+                        powershell -Command "Start-Sleep -Seconds 5"
                         
                         REM Start test environment
+                        echo Starting fresh test environment...
                         docker-compose -f %DOCKER_COMPOSE_JENKINS_FILE% up -d
                         
                         REM Check if services started successfully
                         echo Checking if services started...
                         docker-compose -f %DOCKER_COMPOSE_JENKINS_FILE% ps
                         
-                        REM Wait for services to be ready
+                        REM Wait for services to be ready with extended timeout
                         echo Waiting for services to start...
-                        powershell -Command "Start-Sleep -Seconds 30"
+                        powershell -Command "Start-Sleep -Seconds 45"
                         
-                        REM Check service health
-                        curl -f %ELASTICSEARCH_TEST_URL%/_cluster/health || (echo Elasticsearch not ready && exit /b 1)
-                        echo Elasticsearch is ready
+                        REM Check service health with retry logic
+                        echo Testing Elasticsearch connection...
+                        set /A elasticsearch_ready=0
+                        for /L %%i in (1,1,3) do (
+                            curl -f %ELASTICSEARCH_TEST_URL%/_cluster/health >nul 2>&1
+                            if not errorlevel 1 (
+                                echo Elasticsearch is ready
+                                set /A elasticsearch_ready=1
+                                goto :elasticsearch_done
+                            )
+                            echo Attempt %%i failed, waiting 10 seconds...
+                            powershell -Command "Start-Sleep -Seconds 10"
+                        )
+                        :elasticsearch_done
+                        if %elasticsearch_ready%==0 (
+                            echo Elasticsearch not ready after 3 attempts, checking container status...
+                            docker logs elasticsearch-jenkins --tail 20
+                            exit /b 1
+                        )
                         
                         REM Check Logstash health
                         curl -f %LOGSTASH_TEST_URL% || echo Logstash health check failed, continuing...
