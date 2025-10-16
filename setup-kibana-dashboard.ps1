@@ -1,21 +1,60 @@
-# Kibana Dashboard Setup Script for Windows
+# Safer Kibana Dashboard Setup Script for Windows with Error Handling
 
 Write-Host "Setting up Kibana Dashboard for Vienna Weather Monitoring..." -ForegroundColor Green
 
-# Wait for Kibana to be ready
-do {
+# Function to safely invoke REST API
+function Invoke-SafeRestMethod {
+    param(
+        [string]$Uri,
+        [string]$Method = "GET",
+        [hashtable]$Headers = @{},
+        [string]$Body = $null
+    )
+    
     try {
-        $status = Invoke-RestMethod -Uri "http://localhost:5601/api/status" -Method GET
-        if ($status.status.overall.level -eq "available") {
-            Write-Host "Kibana is ready!" -ForegroundColor Green
-            break
+        $params = @{
+            Uri = $Uri
+            Method = $Method
+            Headers = $Headers
+            TimeoutSec = 30
         }
+        
+        if ($Body) {
+            $params.Body = $Body
+        }
+        
+        return Invoke-RestMethod @params
     }
     catch {
-        Write-Host "Waiting for Kibana to be ready..." -ForegroundColor Yellow
+        Write-Host "API call failed: $($_.Exception.Message)" -ForegroundColor Yellow
+        return $null
+    }
+}
+
+# Wait for Kibana to be ready with timeout
+$maxAttempts = 12
+$attempt = 0
+
+do {
+    $attempt++
+    Write-Host "Checking Kibana status (attempt $attempt/$maxAttempts)..." -ForegroundColor Cyan
+    
+    $status = Invoke-SafeRestMethod -Uri "http://localhost:5601/api/status"
+    
+    if ($status -and $status.status.overall.level -eq "available") {
+        Write-Host "Kibana is ready!" -ForegroundColor Green
+        break
+    }
+    
+    if ($attempt -lt $maxAttempts) {
         Start-Sleep -Seconds 10
     }
-} while ($true)
+} while ($attempt -lt $maxAttempts)
+
+if ($attempt -eq $maxAttempts) {
+    Write-Host "Kibana did not become ready in time. Exiting." -ForegroundColor Red
+    exit 1
+}
 
 Write-Host "Creating data view..." -ForegroundColor Cyan
 
@@ -28,18 +67,15 @@ $dataViewBody = @{
     }
 } | ConvertTo-Json -Depth 3
 
-try {
-    $response = Invoke-RestMethod -Uri "http://localhost:5601/api/data_views/data_view" `
-        -Method POST `
-        -Headers @{"Content-Type"="application/json"; "kbn-xsrf"="true"} `
-        -Body $dataViewBody
+$response = Invoke-SafeRestMethod -Uri "http://localhost:5601/api/data_views/data_view" -Method POST -Headers @{"Content-Type"="application/json"; "kbn-xsrf"="true"} -Body $dataViewBody
+
+if ($response) {
     Write-Host "✅ Data view created successfully!" -ForegroundColor Green
-}
-catch {
-    Write-Host "ℹ️ Data view may already exist or will be created automatically" -ForegroundColor Yellow
+} else {
+    Write-Host "ℹ️ Data view may already exist" -ForegroundColor Yellow
 }
 
-Write-Host "Creating temperature visualization..." -ForegroundColor Cyan
+Write-Host "Creating dashboard..." -ForegroundColor Cyan
 
 # Create dashboard
 $dashboardBody = @{
@@ -57,14 +93,11 @@ $dashboardBody = @{
     }
 } | ConvertTo-Json -Depth 4
 
-try {
-    $response = Invoke-RestMethod -Uri "http://localhost:5601/api/saved_objects/dashboard" `
-        -Method POST `
-        -Headers @{"Content-Type"="application/json"; "kbn-xsrf"="true"} `
-        -Body $dashboardBody
+$response = Invoke-SafeRestMethod -Uri "http://localhost:5601/api/saved_objects/dashboard" -Method POST -Headers @{"Content-Type"="application/json"; "kbn-xsrf"="true"} -Body $dashboardBody
+
+if ($response) {
     Write-Host "🎉 Vienna Weather Dashboard created successfully!" -ForegroundColor Green
-}
-catch {
+} else {
     Write-Host "ℹ️ Dashboard may already exist" -ForegroundColor Yellow
 }
 
