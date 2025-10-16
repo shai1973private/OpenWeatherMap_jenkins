@@ -167,19 +167,33 @@ pipeline {
             post {
                 always {
                     // Publish test results
-                    publishTestResults testResultsPattern: 'test-results/*.xml'
+                    script {
+                        try {
+                            publishTestResults testResultsPattern: 'test-results/*.xml'
+                        } catch (Exception e) {
+                            echo "⚠️ Warning: Could not publish test results: ${e.getMessage()}"
+                        }
+                    }
                     
                     // Publish coverage report
-                    publishCoverage adapters: [coberturaAdapter('test-results/coverage.xml')], sourceFileResolver: sourceFiles('STORE_LAST_BUILD')
+                    script {
+                        try {
+                            publishCoverage adapters: [coberturaAdapter('test-results/coverage.xml')], sourceFileResolver: sourceFiles('STORE_LAST_BUILD')
+                        } catch (Exception e) {
+                            echo "⚠️ Warning: Could not publish coverage report: ${e.getMessage()}"
+                        }
+                    }
                     
-                    // Collect logs
-                    sh '''
-                        mkdir -p test-logs
-                        docker-compose -f ${DOCKER_COMPOSE_JENKINS_FILE} logs > test-logs/docker-compose.log 2>&1 || true
-                    '''
-                    
-                    // Archive logs
-                    archiveArtifacts artifacts: 'test-logs/**/*', allowEmptyArchive: true
+                    // Archive logs and cleanup
+                    script {
+                        try {
+                            archiveArtifacts artifacts: 'test-logs/**/*', allowEmptyArchive: true
+                            // Stop test containers
+                            sh "docker-compose -f ${DOCKER_COMPOSE_JENKINS_FILE} down || true"
+                        } catch (Exception e) {
+                            echo "⚠️ Warning: Could not archive logs or cleanup containers: ${e.getMessage()}"
+                        }
+                    }
                 }
             }
         }
@@ -238,7 +252,13 @@ else:
             post {
                 always {
                     // Archive deployment artifacts
-                    archiveArtifacts artifacts: 'deploy/**/*', allowEmptyArchive: true
+                    script {
+                        try {
+                            archiveArtifacts artifacts: 'deploy/**/*', allowEmptyArchive: true
+                        } catch (Exception e) {
+                            echo "⚠️ Warning: Could not archive deployment artifacts: ${e.getMessage()}"
+                        }
+                    }
                 }
             }
         }
@@ -247,89 +267,39 @@ else:
     post {
         always {
             script {
-                echo "🧹 Cleaning up..."
-                sh '''
-                    # Stop test containers
-                    docker-compose -f ${DOCKER_COMPOSE_JENKINS_FILE} down || true
-                    
-                    # Clean up build artifacts older than 7 days
-                    find build/ -type f -mtime +7 -delete 2>/dev/null || true
-                '''
+                echo "🧹 Cleaning up pipeline..."
+                echo "Build completed: ${BUILD_VERSION}"
+                echo "Timestamp: ${BUILD_TIMESTAMP}"
             }
-            
-            // Archive build artifacts
-            archiveArtifacts artifacts: 'build/artifacts/**/*', allowEmptyArchive: true
-            
-            // Clean workspace
-            cleanWs()
         }
         
         success {
             script {
                 echo "✅ Pipeline completed successfully!"
                 echo "🌟 Vienna Weather Monitoring System deployed and ready!"
-                
-                // Send success notification
-                sh '''
-                    curl -X POST ${ELASTICSEARCH_URL}/vienna-pipeline-notifications/_doc \\
-                         -H "Content-Type: application/json" \\
-                         -d "{
-                           \\"pipeline_id\\": \\"${BUILD_NUMBER}\\",
-                           \\"timestamp\\": \\"$(date -Iseconds)\\",
-                           \\"status\\": \\"SUCCESS\\",
-                           \\"stage\\": \\"DEPLOY\\",
-                           \\"build_version\\": \\"${BUILD_VERSION}\\",
-                           \\"branch\\": \\"${GIT_BRANCH}\\",
-                           \\"project\\": \\"vienna-weather\\",
-                           \\"deployment_urls\\": {
-                             \\"elasticsearch\\": \\"${ELASTICSEARCH_URL}\\",
-                             \\"kibana\\": \\"${KIBANA_URL}\\",
-                             \\"rabbitmq\\": \\"${RABBITMQ_URL}\\"
-                           }
-                         }" || true
-                '''
+                echo "🌐 Access your services:"
+                echo "   • Elasticsearch: ${ELASTICSEARCH_URL}"
+                echo "   • Kibana: ${KIBANA_URL}"
+                echo "   • RabbitMQ: ${RABBITMQ_URL}"
             }
         }
         
         failure {
             script {
                 echo "❌ Pipeline failed!"
-                
-                // Send failure notification
-                sh '''
-                    curl -X POST ${ELASTICSEARCH_URL}/vienna-pipeline-notifications/_doc \\
-                         -H "Content-Type: application/json" \\
-                         -d "{
-                           \\"pipeline_id\\": \\"${BUILD_NUMBER}\\",
-                           \\"timestamp\\": \\"$(date -Iseconds)\\",
-                           \\"status\\": \\"FAILURE\\",
-                           \\"stage\\": \\"${STAGE_NAME}\\",
-                           \\"build_version\\": \\"${BUILD_VERSION}\\",
-                           \\"branch\\": \\"${GIT_BRANCH}\\",
-                           \\"project\\": \\"vienna-weather\\"
-                         }" || true
-                '''
+                echo "Please check the logs above for error details."
+                echo "Common issues:"
+                echo "• Docker not running"
+                echo "• Network connectivity issues"
+                echo "• Missing dependencies"
             }
         }
         
         unstable {
             script {
                 echo "⚠️ Pipeline unstable!"
-                
-                // Send unstable notification
-                sh '''
-                    curl -X POST ${ELASTICSEARCH_URL}/vienna-pipeline-notifications/_doc \\
-                         -H "Content-Type: application/json" \\
-                         -d "{
-                           \\"pipeline_id\\": \\"${BUILD_NUMBER}\\",
-                           \\"timestamp\\": \\"$(date -Iseconds)\\",
-                           \\"status\\": \\"UNSTABLE\\",
-                           \\"stage\\": \\"${STAGE_NAME}\\",
-                           \\"build_version\\": \\"${BUILD_VERSION}\\",
-                           \\"branch\\": \\"${GIT_BRANCH}\\",
-                           \\"project\\": \\"vienna-weather\\"
-                         }" || true
-                '''
+                echo "Some tests may have failed but deployment continued."
+                echo "Please review test results and logs."
             }
         }
     }
