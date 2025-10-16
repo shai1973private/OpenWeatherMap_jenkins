@@ -36,7 +36,8 @@ class RabbitMQManager:
     def is_rabbitmq_running(self):
         """Check if RabbitMQ container is running"""
         try:
-            result = subprocess.run(['docker', 'ps', '--filter', f'name={self.container_name}', '--format', '{{.Names}}'],
+            result = subprocess.run(['docker', 'ps', '--filter', f'name={self.container_name}',
+                                    '--format', '{{.Names}}'],
                                     capture_output=True, text=True, timeout=10)
             return self.container_name in result.stdout
         except (subprocess.TimeoutExpired, FileNotFoundError):
@@ -45,26 +46,27 @@ class RabbitMQManager:
     def start_rabbitmq(self):
         """Start RabbitMQ container"""
         try:
-            print("🐰 Starting RabbitMQ container...")
+            print("Starting RabbitMQ container...")
 
             # Check if container exists but is stopped
-            result = subprocess.run(['docker', 'ps', '-a', '--filter', f'name={self.container_name}', '--format', '{{.Names}}'],
+            result = subprocess.run(['docker', 'ps', '-a', '--filter', f'name={self.container_name}',
+                                    '--format', '{{.Names}}'],
                                     capture_output=True, text=True, timeout=10)
 
             if self.container_name in result.stdout:
                 # Container exists, start it
-                print("📦 Found existing RabbitMQ container, starting it...")
+                print("Found existing RabbitMQ container, starting it...")
                 start_result = subprocess.run(['docker', 'start', self.container_name],
                                               capture_output=True, text=True, timeout=30)
                 if start_result.returncode == 0:
-                    print("✅ RabbitMQ container started successfully")
+                    print("RabbitMQ container started successfully")
                     return True
                 else:
-                    print(f"❌ Failed to start existing container: {start_result.stderr}")
+                    print(f"Failed to start existing container: {start_result.stderr}")
                     return False
             else:
                 # Create new container
-                print("🚀 Creating new RabbitMQ container...")
+                print("Creating new RabbitMQ container...")
                 create_result = subprocess.run([
                     'docker', 'run', '-d',
                     '--name', self.container_name,
@@ -74,33 +76,33 @@ class RabbitMQManager:
                 ], capture_output=True, text=True, timeout=60)
 
                 if create_result.returncode == 0:
-                    print("✅ RabbitMQ container created and started successfully")
-                    print("🌐 Management interface will be available at: http://localhost:15672")
-                    print("⏳ Waiting 10 seconds for RabbitMQ to initialize...")
+                    print("RabbitMQ container created and started successfully")
+                    print("Management interface will be available at: http://localhost:15672")
+                    print("Waiting 10 seconds for RabbitMQ to initialize...")
                     time.sleep(10)  # Wait for RabbitMQ to fully start
                     return True
                 else:
-                    print(f"❌ Failed to create RabbitMQ container: {create_result.stderr}")
+                    print(f"Failed to create RabbitMQ container: {create_result.stderr}")
                     return False
 
         except subprocess.TimeoutExpired:
-            print("❌ Docker command timed out")
+            print("Docker command timed out")
             return False
         except Exception as e:
-            print(f"❌ Error managing RabbitMQ container: {e}")
+            print(f"Error managing RabbitMQ container: {e}")
             return False
 
     def ensure_rabbitmq_running(self):
         """Ensure RabbitMQ is running, start if necessary"""
         if not self.is_docker_available():
-            print("❌ Docker is not available. Please install Docker to auto-manage RabbitMQ.")
+            print("Docker is not available. Please install Docker to auto-manage RabbitMQ.")
             return False
 
         if self.is_rabbitmq_running():
-            print("✅ RabbitMQ container is already running")
+            print("RabbitMQ container is already running")
             return True
         else:
-            print("🔍 RabbitMQ container not running, attempting to start...")
+            print("RabbitMQ container not running, attempting to start...")
             return self.start_rabbitmq()
 
 
@@ -146,23 +148,23 @@ class WeatherRabbitMQPublisher:
                     routing_key=RABBITMQ_ROUTING_KEY
                 )
 
-                print("✅ Connected to RabbitMQ successfully")
+                print("Connected to RabbitMQ successfully")
                 return True
 
             except Exception as e:
-                print(f"❌ Attempt {attempt + 1}/{max_retries} failed to connect to RabbitMQ: {e}")
+                print(f"Attempt {attempt + 1}/{max_retries} failed to connect to RabbitMQ: {e}")
                 if attempt < max_retries - 1:
-                    print("⏳ Waiting 5 seconds before retry...")
+                    print("Waiting 5 seconds before retry...")
                     time.sleep(5)
 
-        print("❌ Failed to connect to RabbitMQ after all attempts")
+        print("Failed to connect to RabbitMQ after all attempts")
         return False
 
     def publish_weather_data(self, weather_data):
         """Publish weather data to RabbitMQ"""
         try:
             if not self.channel:
-                print("❌ No RabbitMQ connection available")
+                print("No RabbitMQ connection available")
                 return False
 
             # Prepare message with millisecond precision timestamp
@@ -187,11 +189,11 @@ class WeatherRabbitMQPublisher:
                 )
             )
 
-            print("📤 Weather data sent to RabbitMQ")
+            print("Weather data sent to RabbitMQ")
             return True
 
         except Exception as e:
-            print(f"❌ Failed to publish to RabbitMQ: {e}")
+            print(f"Failed to publish to RabbitMQ: {e}")
             return False
 
     def close(self):
@@ -199,16 +201,16 @@ class WeatherRabbitMQPublisher:
         try:
             if self.connection and not self.connection.is_closed:
                 self.connection.close()
-                print("🔌 RabbitMQ connection closed")
+                print("RabbitMQ connection closed")
         except Exception as e:
-            print(f"⚠️  Error closing RabbitMQ connection: {e}")
+            print(f"Error closing RabbitMQ connection: {e}")
 
 
 def get_vienna_weather():
     """Get Vienna weather data from OpenWeatherMap API"""
 
     if API_KEY == "YOUR_API_KEY_HERE":
-        print("❌ Please replace 'YOUR_API_KEY_HERE' with your actual OpenWeatherMap API key")
+        print("Please replace 'YOUR_API_KEY_HERE' with your actual OpenWeatherMap API key")
         return None
 
     url = "http://api.openweathermap.org/data/2.5/weather"
@@ -226,30 +228,30 @@ def get_vienna_weather():
         # Display weather information
         current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         print(f"\n{'=' * 60}")
-        print(f"🕐 Weather Check Time: {current_time}")
-        print("🌍 Vienna, Austria Weather")
+        print(f"Weather Check Time: {current_time}")
+        print("Vienna, Austria Weather")
         print(f"{'=' * 60}")
-        print(f"🌤️  Condition: {data['weather'][0]['description'].title()}")
-        print(f"🌡️  Temperature: {data['main']['temp']}°C")
-        print(f"🤔 Feels like: {data['main']['feels_like']}°C")
-        print(f"📊 Min/Max: {data['main']['temp_min']}°C / {data['main']['temp_max']}°C")
-        print(f"💧 Humidity: {data['main']['humidity']}%")
-        print(f"💨 Wind: {data['wind']['speed']} m/s")
-        print(f"🔽 Pressure: {data['main']['pressure']} hPa")
-        print(f"☁️  Cloudiness: {data['clouds']['all']}%")
+        print(f"Condition: {data['weather'][0]['description'].title()}")
+        print(f"Temperature: {data['main']['temp']}C")
+        print(f"Feels like: {data['main']['feels_like']}C")
+        print(f"Min/Max: {data['main']['temp_min']}C / {data['main']['temp_max']}C")
+        print(f"Humidity: {data['main']['humidity']}%")
+        print(f"Wind: {data['wind']['speed']} m/s")
+        print(f"Pressure: {data['main']['pressure']} hPa")
+        print(f"Cloudiness: {data['clouds']['all']}%")
 
         if 'visibility' in data:
-            print(f"👁️  Visibility: {data['visibility'] / 1000:.1f} km")
+            print(f"Visibility: {data['visibility'] / 1000:.1f} km")
 
         print(f"{'=' * 60}")
 
         return data
 
     except requests.exceptions.RequestException as e:
-        print(f"❌ Error fetching weather: {e}")
+        print(f"Error fetching weather: {e}")
         return None
     except KeyError as e:
-        print(f"❌ Error parsing weather data: {e}")
+        print(f"Error parsing weather data: {e}")
         return None
 
 
@@ -277,39 +279,39 @@ def save_to_log(weather_data, check_number):
         with open("vienna_weather_log.json", "a", encoding="utf-8") as f:
             f.write(json.dumps(log_entry) + "\n")
 
-        print("💾 Weather data saved to local log file")
+        print("Weather data saved to local log file")
 
     except Exception as e:
-        print(f"⚠️  Warning: Could not save to log file: {e}")
+        print(f"Warning: Could not save to log file: {e}")
 
 
 def hourly_weather_monitoring():
     """Main function for hourly weather monitoring with auto-managed RabbitMQ"""
 
-    print("🚀 Starting Vienna Weather Monitor with Auto-Managed RabbitMQ")
+    print("Starting Vienna Weather Monitor with Auto-Managed RabbitMQ")
     print("=" * 70)
 
     # Initialize RabbitMQ manager
     rabbitmq_manager = RabbitMQManager()
 
     # Ensure RabbitMQ is running
-    print("🔍 Checking RabbitMQ status...")
+    print("Checking RabbitMQ status...")
     if not rabbitmq_manager.ensure_rabbitmq_running():
-        print("⚠️  Could not start RabbitMQ automatically. Continuing with local logging only.")
+        print("Could not start RabbitMQ automatically. Continuing with local logging only.")
         rabbitmq_connected = False
     else:
         # Initialize RabbitMQ publisher
         publisher = WeatherRabbitMQPublisher()
         rabbitmq_connected = publisher.connect()
 
-    print("\n📊 Monitoring Configuration:")
-    print("   • Weather API: OpenWeatherMap")
-    print("   • Location: Vienna, Austria")
-    print("   • Frequency: Every hour")
-    print(f"   • RabbitMQ: {'✅ Connected' if rabbitmq_connected else '❌ Not available'}")
-    print("   • Local Backup: ✅ Enabled")
+    print("\nMonitoring Configuration:")
+    print("   - Weather API: OpenWeatherMap")
+    print("   - Location: Vienna, Austria")
+    print("   - Frequency: Every hour")
+    print(f"   - RabbitMQ: {'Connected' if rabbitmq_connected else 'Not available'}")
+    print("   - Local Backup: Enabled")
     if rabbitmq_connected:
-        print("   • Management UI: http://localhost:15672 (guest/guest)")
+        print("   - Management UI: http://localhost:15672 (guest/guest)")
     print("=" * 70)
 
     print("Press Ctrl+C to stop the monitoring")
@@ -320,7 +322,7 @@ def hourly_weather_monitoring():
     try:
         while True:
             check_count += 1
-            print(f"\n🔄 Weather Check #{check_count}")
+            print(f"\nWeather Check #{check_count}")
 
             # Get weather data
             weather_data = get_vienna_weather()
@@ -333,20 +335,20 @@ def hourly_weather_monitoring():
                 if rabbitmq_connected:
                     success = publisher.publish_weather_data(weather_data)
                     if not success:
-                        print("⚠️  Failed to send to RabbitMQ, but data saved locally")
+                        print("Failed to send to RabbitMQ, but data saved locally")
                 else:
-                    print("⚠️  RabbitMQ not available, data saved locally only")
+                    print("RabbitMQ not available, data saved locally only")
 
             # Wait for 1 hour
-            print("\n⏰ Waiting 1 hour for next check...")
+            print("\nWaiting 1 hour for next check...")
             next_check = datetime.now().replace(hour=(datetime.now().hour + 1) % 24, minute=0, second=0)
-            print(f"💤 Next check at: {next_check.strftime('%H:%M:%S')}")
+            print(f"Next check at: {next_check.strftime('%H:%M:%S')}")
 
             time.sleep(3600)  # 1 hour
 
     except KeyboardInterrupt:
-        print("\n\n👋 Weather monitoring stopped by user")
-        print(f"📊 Total checks performed: {check_count}")
+        print("\n\nWeather monitoring stopped by user")
+        print(f"Total checks performed: {check_count}")
         print("Thank you for using Vienna Weather Monitor!")
 
     finally:
