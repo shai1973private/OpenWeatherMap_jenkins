@@ -47,39 +47,6 @@ pipeline {
     }
     
     stages {
-        stage('Pre-Cleanup') {
-            steps {
-                script {
-                    echo "=== PRE-BUILD CLEANUP ==="
-                    echo "Performing pre-build cleanup to prevent workspace issues..."
-                    
-                    // Clean up any lingering Docker resources
-                    bat '''
-                        echo "Cleaning up Docker resources..."
-                        docker ps -q | findstr . && (
-                            echo "Stopping running containers..."
-                            docker stop $(docker ps -q) 2>nul
-                        ) || echo "No running containers found"
-                        
-                        docker ps -a -q | findstr . && (
-                            echo "Removing all containers..."
-                            docker rm -f $(docker ps -a -q) 2>nul
-                        ) || echo "No containers to remove"
-                        
-                        echo "Pruning Docker system..."
-                        docker system prune -f --volumes 2>nul || echo "Docker system prune completed"
-                        
-                        echo "Docker cleanup completed"
-                    '''
-                    
-                    // Wait for cleanup to take effect
-                    bat 'timeout /t 3 /nobreak >nul'
-                    
-                    echo "Pre-build cleanup completed successfully"
-                }
-            }
-        }
-        
         stage('Clone') {
             steps {
                 script {
