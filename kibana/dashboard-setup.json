@@ -1,0 +1,30 @@
+{
+  "version": "8.11.0",
+  "objects": [
+    {
+      "id": "vienna-weather-*",
+      "type": "index-pattern",
+      "attributes": {
+        "title": "vienna-weather-*",
+        "timeFieldName": "@timestamp",
+        "fields": "[{\"name\":\"@timestamp\",\"type\":\"date\",\"searchable\":true,\"aggregatable\":true},{\"name\":\"location\",\"type\":\"string\",\"searchable\":true,\"aggregatable\":true},{\"name\":\"temperature\",\"type\":\"number\",\"searchable\":true,\"aggregatable\":true},{\"name\":\"humidity\",\"type\":\"number\",\"searchable\":true,\"aggregatable\":true},{\"name\":\"pressure\",\"type\":\"number\",\"searchable\":true,\"aggregatable\":true},{\"name\":\"wind_speed\",\"type\":\"number\",\"searchable\":true,\"aggregatable\":true},{\"name\":\"weather_main\",\"type\":\"string\",\"searchable\":true,\"aggregatable\":true},{\"name\":\"weather_description\",\"type\":\"string\",\"searchable\":true,\"aggregatable\":true}]"
+      }
+    },
+    {
+      "id": "vienna-weather-dashboard",
+      "type": "dashboard",
+      "attributes": {
+        "title": "Vienna Weather Monitoring Dashboard",
+        "description": "Real-time weather monitoring for Vienna, Austria",
+        "panelsJSON": "[{\"gridData\":{\"x\":0,\"y\":0,\"w\":24,\"h\":15},\"panelIndex\":\"1\",\"embeddableConfig\":{},\"panelRefName\":\"panel_1\"},{\"gridData\":{\"x\":24,\"y\":0,\"w\":24,\"h\":15},\"panelIndex\":\"2\",\"embeddableConfig\":{},\"panelRefName\":\"panel_2\"},{\"gridData\":{\"x\":0,\"y\":15,\"w\":48,\"h\":15},\"panelIndex\":\"3\",\"embeddableConfig\":{},\"panelRefName\":\"panel_3\"}]",
+        "timeRestore": true,
+        "timeTo": "now",
+        "timeFrom": "now-7d",
+        "refreshInterval": {
+          "pause": false,
+          "value": 300000
+        }
+      }
+    }
+  ]
+}

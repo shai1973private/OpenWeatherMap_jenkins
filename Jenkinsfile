@@ -357,8 +357,12 @@ pipeline {
                         echo Starting Vienna Weather Monitoring Application...
                         start /B python weather_auto_rabbitmq.py
                         
-                        REM Wait for application to initialize
-                        powershell -Command "Start-Sleep -Seconds 10"
+                        REM Wait for application to initialize and collect first data
+                        powershell -Command "Start-Sleep -Seconds 15"
+                        
+                        REM Setup Kibana Dashboard automatically
+                        echo Setting up Kibana Dashboard and Data Views...
+                        powershell -ExecutionPolicy Bypass -File ../setup-kibana-dashboard.ps1
                         
                         echo ================================================
                         echo PRODUCTION DEPLOYMENT COMPLETED
@@ -410,6 +414,12 @@ pipeline {
                 echo "   • Kibana: http://localhost:5601" 
                 echo "   • RabbitMQ Management: http://localhost:15672"
                 echo "   • Weather Monitoring App: ACTIVE"
+                echo ""
+                echo "📊 Kibana Dashboards & Analytics:"
+                echo "   • Weather Dashboard: http://localhost:5601/app/dashboards"
+                echo "   • Data Explorer: http://localhost:5601/app/discover"
+                echo "   • Visualizations: http://localhost:5601/app/visualize"
+                echo "   • Dev Tools: http://localhost:5601/app/dev_tools"
                 echo ""
                 echo "Build Information:"
                 echo "   • Version: ${BUILD_VERSION}"
