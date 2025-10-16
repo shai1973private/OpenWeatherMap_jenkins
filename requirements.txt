@@ -1,0 +1,21 @@
+# Requirements for Vienna Weather Monitoring System
+# Used by Jenkins pipeline for dependency installation
+
+# Core dependencies
+requests>=2.31.0
+pika>=1.3.2
+
+# Testing dependencies
+pytest>=7.4.0
+pytest-cov>=4.1.0
+pytest-mock>=3.11.1
+
+# Code quality
+flake8>=6.0.0
+black>=23.7.0
+
+# Additional utilities
+python-dotenv>=1.0.0
+
+# Optional for enhanced functionality
+schedule>=1.2.0

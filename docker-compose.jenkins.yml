@@ -1,0 +1,121 @@
+# Docker Compose for Jenkins CI/CD Pipeline
+# Optimized for testing and integration phases
+services:
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.11.0
+    container_name: elasticsearch-jenkins
+    environment:
+      - discovery.type=single-node
+      - ES_JAVA_OPTS=-Xms256m -Xmx256m  # Reduced memory for CI
+      - xpack.security.enabled=false
+      - xpack.security.enrollment.enabled=false
+      - "cluster.routing.allocation.disk.threshold_enabled=false"
+    ports:
+      - "9200:9200"
+    volumes:
+      - elasticsearch_jenkins_data:/usr/share/elasticsearch/data
+    networks:
+      - jenkins_elk_network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9200/_cluster/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  logstash:
+    image: docker.elastic.co/logstash/logstash:8.11.0
+    container_name: logstash-jenkins
+    ports:
+      - "5044:5044"
+      - "9600:9600"
+    volumes:
+      - ./logstash/config:/usr/share/logstash/config:ro
+      - ./logstash/pipeline:/usr/share/logstash/pipeline:ro
+    environment:
+      - LS_JAVA_OPTS=-Xmx128m -Xms128m  # Reduced memory for CI
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    networks:
+      - jenkins_elk_network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9600 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.11.0
+    container_name: kibana-jenkins
+    ports:
+      - "5601:5601"
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+      - SERVER_NAME=kibana-jenkins
+      - SERVER_BASEPATH=""
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    networks:
+      - jenkins_elk_network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:5601/api/status || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 120s
+
+  rabbitmq:
+    image: rabbitmq:3.12-management-alpine
+    container_name: rabbitmq-jenkins
+    ports:
+      - "5672:5672"   # AMQP port
+      - "15672:15672" # Management UI port
+    environment:
+      - RABBITMQ_DEFAULT_USER=guest
+      - RABBITMQ_DEFAULT_PASS=guest
+      - RABBITMQ_VM_MEMORY_HIGH_WATERMARK=0.6
+    volumes:
+      - rabbitmq_jenkins_data:/var/lib/rabbitmq
+    networks:
+      - jenkins_elk_network
+    healthcheck:
+      test: ["CMD-SHELL", "rabbitmq-diagnostics -q ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  # Test utilities container for integration testing
+  test-runner:
+    image: python:3.11-slim
+    container_name: test-runner-jenkins
+    working_dir: /app
+    volumes:
+      - .:/app
+    environment:
+      - PYTHONPATH=/app
+      - ELASTICSEARCH_URL=http://elasticsearch:9200
+      - RABBITMQ_HOST=rabbitmq
+      - RABBITMQ_PORT=5672
+    command: ["sleep", "infinity"]  # Keep container running for tests
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - jenkins_elk_network
+
+volumes:
+  elasticsearch_jenkins_data:
+    driver: local
+  rabbitmq_jenkins_data:
+    driver: local
+
+networks:
+  jenkins_elk_network:
+    driver: bridge
+    name: jenkins_elk_network

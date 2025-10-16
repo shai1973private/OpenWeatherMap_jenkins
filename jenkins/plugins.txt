@@ -1,0 +1,88 @@
+# Required Jenkins Plugins for Vienna Weather Monitoring CI/CD Pipeline
+
+# Core Pipeline Plugins
+pipeline-stage-view:latest
+workflow-aggregator:latest
+workflow-job:latest
+workflow-cps:latest
+workflow-basic-steps:latest
+workflow-durable-task-step:latest
+workflow-scm-step:latest
+workflow-support:latest
+
+# Git Integration
+git:latest
+github:latest
+github-branch-source:latest
+
+# Docker Integration  
+docker-workflow:latest
+docker-commons:latest
+docker-build-step:latest
+
+# Test and Coverage Reporting
+junit:latest
+coverage:latest
+htmlpublisher:latest
+cobertura:latest
+warnings-ng:latest
+
+# Build Tools and Utilities
+build-timeout:latest
+timestamper:latest
+ws-cleanup:latest
+build-name-setter:latest
+build-user-vars-plugin:latest
+
+# Credentials and Security
+credentials-binding:latest
+credentials:latest
+plain-credentials:latest
+ssh-credentials:latest
+
+# Notifications and Integrations
+mailer:latest
+email-ext:latest
+slack:latest
+
+# User Interface Enhancements
+blueocean:latest
+pipeline-graph-analysis:latest
+pipeline-stage-tags-metadata:latest
+
+# Additional Utilities
+ant:latest
+gradle:latest
+nodejs:latest
+python:latest
+ansible:latest
+
+# Monitoring and Metrics
+prometheus:latest
+datadog:latest
+
+# File Operations
+copyartifact:latest
+archive-artifacts:latest
+
+# Multi-branch Pipeline Support
+multibranch-scan-webhook-trigger:latest
+basic-branch-build-strategies:latest
+
+# Environment Management
+envinject:latest
+build-environment:latest
+
+# Parallel Execution
+parallel-test-executor:latest
+
+# Artifact Management
+artifactory:latest
+
+# Code Quality
+sonar:latest
+checkstyle:latest
+
+# Dashboard and Views
+dashboard-view:latest
+build-monitor-plugin:latest
