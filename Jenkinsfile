@@ -28,6 +28,10 @@ pipeline {
     
     options {
         buildDiscarder(logRotator(numToKeepStr: '10'))
+        skipDefaultCheckout(false)
+        timeout(time: 30, unit: 'MINUTES')
+        retry(1)
+    }
         timeout(time: 30, unit: 'MINUTES')
         skipStagesAfterUnstable()
         parallelsAlwaysFailFast()
@@ -51,8 +55,24 @@ pipeline {
                     echo "Commit: ${env.GIT_COMMIT}"
                 }
                 
-                // Clean workspace
-                cleanWs()
+                // Clean workspace with better error handling
+                script {
+                    try {
+                        cleanWs()
+                        echo "Workspace cleaned successfully"
+                    } catch (Exception e) {
+                        echo "Warning: Workspace cleanup had issues: ${e.getMessage()}"
+                        echo "Continuing with build..."
+                        
+                        // Manual cleanup attempt
+                        bat '''
+                            echo "Attempting manual cleanup..."
+                            timeout /t 2
+                            del /f /s /q . 2>nul || echo "Manual file cleanup completed"
+                            for /d %%i in (*) do rd /s /q "%%i" 2>nul || echo "Manual directory cleanup completed"
+                        '''
+                    }
+                }
                 
                 // Checkout code
                 checkout scm
@@ -456,6 +476,36 @@ pipeline {
                 echo "Pipeline unstable!"
                 echo "Some tests may have failed but deployment continued."
                 echo "Please review test results and logs."
+            }
+        }
+        
+        cleanup {
+            script {
+                echo "Performing workspace cleanup..."
+                
+                // Force cleanup of Docker containers and networks
+                bat """
+                    echo "Cleaning up Docker resources..."
+                    docker container prune -f || echo "Container cleanup completed"
+                    docker network prune -f || echo "Network cleanup completed"
+                    docker volume prune -f || echo "Volume cleanup completed"
+                """
+                
+                // Attempt to clean workspace with retries
+                bat """
+                    echo "Attempting workspace cleanup..."
+                    timeout /t 3
+                    dir /b . 2>nul && (
+                        for /d %%i in (*) do (
+                            echo Removing directory: %%i
+                            rd /s /q "%%i" 2>nul || echo Failed to remove %%i
+                        )
+                        for %%i in (*) do (
+                            echo Removing file: %%i
+                            del /f /q "%%i" 2>nul || echo Failed to remove %%i
+                        )
+                    ) || echo Workspace already clean
+                """
             }
         }
     }
