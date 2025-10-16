@@ -30,11 +30,7 @@ pipeline {
         buildDiscarder(logRotator(numToKeepStr: '10'))
         skipDefaultCheckout(false)
         timeout(time: 30, unit: 'MINUTES')
-        retry(1)
-    }
-        timeout(time: 30, unit: 'MINUTES')
         skipStagesAfterUnstable()
-        parallelsAlwaysFailFast()
     }
     
     triggers {
@@ -407,6 +403,7 @@ pipeline {
                 }
             }
         }
+    }
     
     post {
         always {
