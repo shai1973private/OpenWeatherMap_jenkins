@@ -15,10 +15,6 @@ pipeline {
         KIBANA_URL = 'http://localhost:5601'
         RABBITMQ_URL = 'http://localhost:15672'
         
-        // Docker and Registry Configuration
-        DOCKER_REGISTRY = credentials('docker-registry-url')
-        DOCKER_REPO = "${DOCKER_REGISTRY}/${PROJECT_NAME}"
-        
         // Build Information
         BUILD_VERSION = "${env.BUILD_NUMBER}-${env.GIT_COMMIT.take(7)}"
         BUILD_TIMESTAMP = sh(script: "date +%Y%m%d-%H%M%S", returnStdout: true).trim()
