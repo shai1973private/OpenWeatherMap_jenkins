@@ -565,29 +565,29 @@ pipeline {
             script {
                 echo "Performing workspace cleanup..."
                 
-                // Force cleanup of Docker containers and networks
-                bat """
-                    echo "Cleaning up Docker resources..."
-                    docker container prune -f || echo "Container cleanup completed"
-                    docker network prune -f || echo "Network cleanup completed"
-                    docker volume prune -f || echo "Volume cleanup completed"
-                """
+                try {
+                    // Force cleanup of Docker containers and networks
+                    if (isUnix()) {
+                        sh """
+                            echo "Cleaning up Docker resources..."
+                            docker container prune -f || echo "Container cleanup completed"
+                            docker network prune -f || echo "Network cleanup completed"
+                            docker volume prune -f || echo "Volume cleanup completed"
+                        """
+                    } else {
+                        // For Windows, use PowerShell commands directly in script block
+                        powershell '''
+                            Write-Host "Cleaning up Docker resources..."
+                            try { docker container prune -f } catch { Write-Host "Container cleanup completed" }
+                            try { docker network prune -f } catch { Write-Host "Network cleanup completed" }
+                            try { docker volume prune -f } catch { Write-Host "Volume cleanup completed" }
+                        '''
+                    }
+                } catch (Exception e) {
+                    echo "Docker cleanup failed: ${e.getMessage()}"
+                }
                 
-                // Attempt to clean workspace with retries
-                bat """
-                    echo "Attempting workspace cleanup..."
-                    timeout /t 3
-                    dir /b . 2>nul && (
-                        for /d %%i in (*) do (
-                            echo Removing directory: %%i
-                            rd /s /q "%%i" 2>nul || echo Failed to remove %%i
-                        )
-                        for %%i in (*) do (
-                            echo Removing file: %%i
-                            del /f /q "%%i" 2>nul || echo Failed to remove %%i
-                        )
-                    ) || echo Workspace already clean
-                """
+                echo "Cleanup completed successfully"
             }
         }
     }
