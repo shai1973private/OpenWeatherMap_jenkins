@@ -28,20 +28,68 @@ pipeline {
     
     options {
         buildDiscarder(logRotator(numToKeepStr: '10'))
-        skipDefaultCheckout(false)
+        skipDefaultCheckout(true)  // Skip default checkout to control cleanup
         timeout(time: 30, unit: 'MINUTES')
         skipStagesAfterUnstable()
         disableConcurrentBuilds()
+        
+        // Enhanced workspace management for Windows
+        retry(3)
+        timestamps()
+        
+        // Use unique workspace path to avoid cleanup issues
+        ws("C:\\temp\\jenkins-workspaces\\vienna-weather-${BUILD_NUMBER}")
     }
     
     triggers {
-        // Poll SCM every 5 minutes for changes
-        pollSCM('H/5 * * * *')
         // Build daily at 2 AM
         cron('H 2 * * *')
     }
     
     stages {
+        stage('Pre-Cleanup') {
+            steps {
+                script {
+                    echo "=== PRE-BUILD CLEANUP ==="
+                    echo "Performing pre-build cleanup to prevent workspace issues..."
+                    
+                    // Clean up any lingering Docker resources
+                    bat '''
+                        echo "Cleaning up Docker resources..."
+                        docker ps -q | findstr . && (
+                            echo "Stopping running containers..."
+                            docker stop $(docker ps -q) 2>nul
+                        ) || echo "No running containers found"
+                        
+                        docker ps -a -q | findstr . && (
+                            echo "Removing all containers..."
+                            docker rm -f $(docker ps -a -q) 2>nul
+                        ) || echo "No containers to remove"
+                        
+                        echo "Pruning Docker system..."
+                        docker system prune -f --volumes 2>nul || echo "Docker system prune completed"
+                        
+                        echo "Docker cleanup completed"
+                    '''
+                    
+                    // Kill any processes that might interfere
+                    bat '''
+                        echo "Terminating potentially interfering processes..."
+                        taskkill /f /im python.exe 2>nul || echo "No Python processes to terminate"
+                        taskkill /f /im node.exe 2>nul || echo "No Node processes to terminate" 
+                        taskkill /f /im java.exe 2>nul || echo "No Java processes to terminate"
+                        taskkill /f /im git.exe 2>nul || echo "No Git processes to terminate"
+                        echo "Process cleanup completed"
+                    '''
+                    
+                    // Wait for cleanup to take effect
+                    bat 'timeout /t 3 /nobreak >nul'
+                    
+                    echo "Pre-build cleanup completed successfully"
+                }
+            }
+        }
+        
         stage('Clone') {
             steps {
                 script {
@@ -52,35 +100,67 @@ pipeline {
                     echo "Commit: ${env.GIT_COMMIT}"
                 }
                 
-                // Clean workspace with better error handling
+                // Enhanced workspace cleanup with comprehensive Windows support
                 script {
                     try {
                         cleanWs()
                         echo "Workspace cleaned successfully"
                     } catch (Exception e) {
-                        echo "Warning: Workspace cleanup had issues: ${e.getMessage()}"
-                        echo "Using alternative cleanup methods..."
+                        echo "Warning: Jenkins cleanWs() failed: ${e.getMessage()}"
+                        echo "Switching to enhanced Windows cleanup script..."
                         
-                        // Enhanced manual cleanup with multiple methods
+                        // Use the comprehensive PowerShell cleanup script
                         bat '''
-                            echo "Attempting enhanced workspace cleanup..."
+                            echo "=== ENHANCED WINDOWS WORKSPACE CLEANUP ==="
+                            echo "Workspace: %WORKSPACE%"
+                            echo "Build: %BUILD_NUMBER%"
+                            echo "Starting comprehensive cleanup process..."
                             
-                            REM Method 1: Standard deletion
-                            del /f /s /q . 2>nul || echo "Standard file cleanup completed"
-                            for /d %%i in (*) do rd /s /q "%%i" 2>nul || echo "Standard directory cleanup completed"
+                            REM First, stop any background processes that might lock files
+                            echo "Stopping potential file-locking processes..."
+                            taskkill /f /im python.exe 2>nul || echo "No Python processes to kill"
+                            taskkill /f /im node.exe 2>nul || echo "No Node processes to kill"
+                            taskkill /f /im java.exe 2>nul || echo "No Java processes to kill"
+                            taskkill /f /im git.exe 2>nul || echo "No Git processes to kill"
                             
-                            REM Method 2: Take ownership and force delete
+                            REM Stop and clean Docker resources that might lock files
+                            echo "Cleaning Docker resources..."
+                            docker stop $(docker ps -q) 2>nul || echo "No containers to stop"
+                            docker rm -f $(docker ps -a -q) 2>nul || echo "No containers to remove"
+                            docker system prune -f 2>nul || echo "Docker cleanup completed"
+                            
+                            REM Wait for processes to fully terminate
+                            timeout /t 5 /nobreak >nul
+                            
+                            REM Execute the comprehensive PowerShell cleanup script
+                            powershell -ExecutionPolicy Bypass -Command "& { if (Test-Path './jenkins-workspace-cleanup.ps1') { ./jenkins-workspace-cleanup.ps1 -WorkspacePath '%WORKSPACE%' -Force -Verbose } else { Write-Host 'Cleanup script not found, using fallback method'; Get-ChildItem -Force | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue } }"
+                            
+                            REM Fallback cleanup methods if script fails
+                            echo "Applying fallback cleanup methods..."
+                            
+                            REM Remove read-only attributes
+                            attrib -r -s -h *.* /s /d 2>nul || echo "Attribute removal completed"
+                            
+                            REM Take ownership and grant permissions
+                            takeown /f . /r /d y 2>nul || echo "Ownership change completed"
+                            icacls . /grant administrators:F /t /c /q 2>nul || echo "Permission change completed"
+                            
+                            REM Force deletion with multiple methods
                             for /d %%i in (*) do (
-                                echo Taking ownership of %%i
-                                takeown /f "%%i" /r /d y 2>nul
-                                icacls "%%i" /grant administrators:F /t 2>nul
-                                rd /s /q "%%i" 2>nul || echo "Could not remove %%i"
+                                echo "Removing directory: %%i"
+                                rd /s /q "%%i" 2>nul || (
+                                    robocopy "%%TEMP%%\\empty" "%%i" /mir /nfl /ndl /njh /njs 2>nul
+                                    rd /s /q "%%i" 2>nul || echo "Stubborn directory: %%i"
+                                )
                             )
                             
-                            REM Method 3: PowerShell cleanup as fallback
-                            powershell -Command "Get-ChildItem -Force | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue"
+                            REM Remove files
+                            del /f /s /q *.* 2>nul || echo "File removal completed"
                             
-                            echo "Enhanced cleanup completed"
+                            REM Final verification
+                            dir /b 2>nul && echo "Some items remain in workspace" || echo "Workspace cleanup completed successfully"
+                            
+                            echo "=== CLEANUP PROCESS FINISHED ==="
                         '''
                     }
                 }
