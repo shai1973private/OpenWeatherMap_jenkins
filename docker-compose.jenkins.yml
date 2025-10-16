@@ -27,8 +27,8 @@ services:
     image: docker.elastic.co/logstash/logstash:8.11.0
     container_name: logstash-jenkins
     ports:
-      - "5044:5044"
-      - "9600:9600"
+      - "5045:5044"  # Use different port for Jenkins testing
+      - "9601:9600"  # Use different port for Jenkins testing
     volumes:
       - ./logstash/config:/usr/share/logstash/config:ro
       - ./logstash/pipeline:/usr/share/logstash/pipeline:ro

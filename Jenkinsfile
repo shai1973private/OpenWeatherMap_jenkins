@@ -19,6 +19,7 @@ pipeline {
         ELASTICSEARCH_TEST_URL = 'http://localhost:9201'
         KIBANA_TEST_URL = 'http://localhost:5602'
         RABBITMQ_TEST_URL = 'http://localhost:15673'
+        LOGSTASH_TEST_URL = 'http://localhost:9601'
         
         // Build Information
         BUILD_VERSION = "${env.BUILD_NUMBER}-${env.GIT_COMMIT.take(7)}"
@@ -141,9 +142,11 @@ pipeline {
                         REM Stop any existing containers and remove conflicting services
                         docker-compose -f %DOCKER_COMPOSE_JENKINS_FILE% down || echo No containers to stop
                         
-                        REM Stop any existing Elasticsearch/Kibana that might be using ports
-                        docker stop elasticsearch kibana rabbitmq 2>nul || echo No conflicting containers found
-                        docker rm elasticsearch kibana rabbitmq 2>nul || echo No containers to remove
+                        REM Stop any existing services that might be using the same ports
+                        docker stop elasticsearch kibana rabbitmq logstash 2>nul || echo No conflicting containers found
+                        docker stop elasticsearch-jenkins kibana-jenkins rabbitmq-jenkins logstash-jenkins 2>nul || echo No Jenkins containers found
+                        docker rm elasticsearch kibana rabbitmq logstash 2>nul || echo No containers to remove
+                        docker rm elasticsearch-jenkins kibana-jenkins rabbitmq-jenkins logstash-jenkins 2>nul || echo No Jenkins containers to remove
                         
                         REM Start test environment
                         docker-compose -f %DOCKER_COMPOSE_JENKINS_FILE% up -d
@@ -159,6 +162,10 @@ pipeline {
                         REM Check service health
                         curl -f %ELASTICSEARCH_TEST_URL%/_cluster/health || (echo Elasticsearch not ready && exit /b 1)
                         echo Elasticsearch is ready
+                        
+                        REM Check Logstash health
+                        curl -f %LOGSTASH_TEST_URL% || echo Logstash health check failed, continuing...
+                        echo Logstash status checked
                         
                         REM Test RabbitMQ connection with better error handling
                         docker ps --filter "name=rabbitmq-jenkins" --format "{{.Status}}" | findstr "Up" >nul
