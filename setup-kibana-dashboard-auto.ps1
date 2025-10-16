@@ -7,7 +7,7 @@ param(
     [int]$WaitSeconds = 10
 )
 
-Write-Host "🚀 Setting up Kibana Dashboard for Vienna Weather Monitoring..." -ForegroundColor Green
+Write-Host "Setting up Kibana Dashboard for Vienna Weather Monitoring..." -ForegroundColor Green
 
 # Function to safely invoke REST API with proper error handling
 function Invoke-SafeRestMethod {
@@ -36,7 +36,7 @@ function Invoke-SafeRestMethod {
         return $response
     }
     catch {
-        Write-Host "⚠️ API call to $Uri failed: $($_.Exception.Message)" -ForegroundColor Yellow
+        Write-Host "API call to $Uri failed: $($_.Exception.Message)" -ForegroundColor Yellow
         return $null
     }
 }
@@ -52,7 +52,7 @@ do {
     $status = Invoke-SafeRestMethod -Uri "$KibanaUrl/api/status"
     
     if ($status -and $status.status.overall.level -eq "available") {
-        Write-Host "✅ Kibana is ready!" -ForegroundColor Green
+        Write-Host "Kibana is ready!" -ForegroundColor Green
         break
     }
     
@@ -63,12 +63,12 @@ do {
 } while ($attempt -lt $MaxAttempts)
 
 if ($attempt -eq $MaxAttempts) {
-    Write-Host "❌ Kibana did not become ready in time. Exiting." -ForegroundColor Red
+    Write-Host "Kibana did not become ready in time. Exiting." -ForegroundColor Red
     exit 1
 }
 
 # Step 1: Create/Verify Data View
-Write-Host "📊 Creating Vienna Weather data view..." -ForegroundColor Cyan
+Write-Host "Creating Vienna Weather data view..." -ForegroundColor Cyan
 
 $dataViewBody = @{
     data_view = @{
@@ -86,7 +86,7 @@ $headers = @{
 $dataViewResponse = Invoke-SafeRestMethod -Uri "$KibanaUrl/api/data_views/data_view" -Method POST -Headers $headers -Body $dataViewBody
 
 if ($dataViewResponse) {
-    Write-Host "✅ Data view created successfully!" -ForegroundColor Green
+    Write-Host "Data view created successfully!" -ForegroundColor Green
     $dataViewId = $dataViewResponse.data_view.id
     Write-Host "   Data View ID: $dataViewId" -ForegroundColor DarkGreen
 } else {
@@ -97,13 +97,13 @@ if ($dataViewResponse) {
         $viennaDataView = $existingDataViews.data_view | Where-Object { $_.title -like "*vienna-weather*" }
         if ($viennaDataView) {
             $dataViewId = $viennaDataView[0].id
-            Write-Host "✅ Using existing data view: $dataViewId" -ForegroundColor Green
+            Write-Host "Using existing data view: $dataViewId" -ForegroundColor Green
         }
     }
 }
 
 # Step 2: Create Dashboard
-Write-Host "🎯 Creating Vienna Weather Dashboard..." -ForegroundColor Cyan
+Write-Host "Creating Vienna Weather Dashboard..." -ForegroundColor Cyan
 
 $dashboardBody = @{
     attributes = @{
@@ -124,11 +124,11 @@ $dashboardBody = @{
 $dashboardResponse = Invoke-SafeRestMethod -Uri "$KibanaUrl/api/saved_objects/dashboard" -Method POST -Headers $headers -Body $dashboardBody
 
 if ($dashboardResponse) {
-    Write-Host "✅ Vienna Weather Dashboard created successfully!" -ForegroundColor Green
+    Write-Host "Vienna Weather Dashboard created successfully!" -ForegroundColor Green
     $dashboardId = $dashboardResponse.id
     Write-Host "   Dashboard ID: $dashboardId" -ForegroundColor DarkGreen
 } else {
-    Write-Host "ℹ️  Dashboard may already exist, checking..." -ForegroundColor Yellow
+    Write-Host "Dashboard may already exist, checking..." -ForegroundColor Yellow
     
     # Check for existing dashboard
     $searchUrl = "$KibanaUrl/api/saved_objects/_find?type=dashboard"
@@ -137,13 +137,13 @@ if ($dashboardResponse) {
         $viennaDashboard = $existingDashboards.saved_objects | Where-Object { $_.attributes.title -like "*Vienna*" }
         if ($viennaDashboard) {
             $dashboardId = $viennaDashboard[0].id
-            Write-Host "✅ Using existing dashboard: $dashboardId" -ForegroundColor Green
+            Write-Host "Using existing dashboard: $dashboardId" -ForegroundColor Green
         }
     }
 }
 
 # Step 3: Create Index Pattern (backup method)
-Write-Host "🔧 Ensuring index pattern exists..." -ForegroundColor Cyan
+Write-Host "Ensuring index pattern exists..." -ForegroundColor Cyan
 
 $indexPatternBody = @{
     attributes = @{
@@ -155,14 +155,14 @@ $indexPatternBody = @{
 $indexPatternResponse = Invoke-SafeRestMethod -Uri "$KibanaUrl/api/saved_objects/index-pattern" -Method POST -Headers $headers -Body $indexPatternBody
 
 if ($indexPatternResponse) {
-    Write-Host "✅ Index pattern created as backup!" -ForegroundColor Green
+    Write-Host "Index pattern created as backup!" -ForegroundColor Green
 } else {
-    Write-Host "ℹ️  Index pattern may already exist" -ForegroundColor Yellow
+    Write-Host "Index pattern may already exist" -ForegroundColor Yellow
 }
 
 # Step 4: Verify setup and provide information
 Write-Host ""
-Write-Host "🎯 Kibana Setup Complete!" -ForegroundColor Green
+Write-Host "Kibana Setup Complete!" -ForegroundColor Green
 Write-Host "================================================" -ForegroundColor Green
 
 # Check if we have weather data
@@ -170,7 +170,7 @@ $weatherDataCheck = Invoke-SafeRestMethod -Uri "http://localhost:9200/vienna-wea
 if ($weatherDataCheck -and $weatherDataCheck.count -gt 0) {
     Write-Host "📈 Weather data available: $($weatherDataCheck.count) documents" -ForegroundColor Green
 } else {
-    Write-Host "⚠️  No weather data found yet. Data will appear as the monitoring system runs." -ForegroundColor Yellow
+    Write-Host "No weather data found yet. Data will appear as the monitoring system runs." -ForegroundColor Yellow
 }
 
 Write-Host ""
@@ -181,13 +181,13 @@ Write-Host "   • Visualizations: $KibanaUrl/app/visualize" -ForegroundColor Wh
 Write-Host "   • Dev Tools: $KibanaUrl/app/dev_tools" -ForegroundColor White
 
 Write-Host ""
-Write-Host "📊 Dashboard Features:" -ForegroundColor Cyan
+Write-Host "Dashboard Features:" -ForegroundColor Cyan
 Write-Host "   • Auto-refresh every 5 minutes" -ForegroundColor White
 Write-Host "   • Shows last 24 hours of data" -ForegroundColor White
 Write-Host "   • Ready for custom visualizations" -ForegroundColor White
 
 Write-Host ""
-Write-Host "🚀 Next Steps:" -ForegroundColor Cyan
+Write-Host "Next Steps:" -ForegroundColor Cyan
 Write-Host "   1. Open the dashboard URL above" -ForegroundColor White
 Write-Host "   2. Click 'Edit' to add visualizations" -ForegroundColor White
 Write-Host "   3. Create charts for temperature, humidity, weather conditions" -ForegroundColor White

@@ -1,7 +1,7 @@
 # Enhanced Automatic Kibana Setup with Visualizations
 # Creates dashboard AND useful weather visualizations automatically
 
-Write-Host "🚀 Setting up Complete Vienna Weather Dashboard with Visualizations..." -ForegroundColor Green
+Write-Host "Setting up Complete Vienna Weather Dashboard with Visualizations..." -ForegroundColor Green
 
 # Wait for Kibana
 $attempt = 0
@@ -11,7 +11,7 @@ do {
     try {
         $status = Invoke-RestMethod -Uri "http://localhost:5601/api/status" -TimeoutSec 10
         if ($status.status.overall.level -eq "available") {
-            Write-Host "✅ Kibana is ready!" -ForegroundColor Green
+            Write-Host "Kibana is ready!" -ForegroundColor Green
             break
         }
     } catch {
@@ -27,7 +27,7 @@ $headers = @{
 }
 
 # Step 1: Create/Get Data View
-Write-Host "📊 Setting up data view..." -ForegroundColor Cyan
+Write-Host "Setting up data view..." -ForegroundColor Cyan
 $dataViewBody = @{
     data_view = @{
         title = "vienna-weather-*"
@@ -39,12 +39,12 @@ $dataViewBody = @{
 try {
     $dataViewResult = Invoke-RestMethod -Uri "http://localhost:5601/api/data_views/data_view" -Method POST -Headers $headers -Body $dataViewBody
     $dataViewId = $dataViewResult.data_view.id
-    Write-Host "✅ Data view created: $dataViewId" -ForegroundColor Green
+    Write-Host "Data view created: $dataViewId" -ForegroundColor Green
 } catch {
     # Get existing data view
     $existingDataViews = Invoke-RestMethod -Uri "http://localhost:5601/api/data_views"
     $dataViewId = $existingDataViews.data_view[0].id
-    Write-Host "✅ Using existing data view: $dataViewId" -ForegroundColor Green
+    Write-Host "Using existing data view: $dataViewId" -ForegroundColor Green
 }
 
 # Step 2: Create Visualizations
@@ -125,14 +125,14 @@ $tempVizBody = @{
 try {
     $tempVizResult = Invoke-RestMethod -Uri "http://localhost:5601/api/saved_objects/lens" -Method POST -Headers $headers -Body $tempVizBody
     $tempVizId = $tempVizResult.id
-    Write-Host "✅ Temperature visualization created: $tempVizId" -ForegroundColor Green
+    Write-Host "Temperature visualization created: $tempVizId" -ForegroundColor Green
 } catch {
-    Write-Host "⚠️ Temperature visualization may already exist" -ForegroundColor Yellow
+    Write-Host "Temperature visualization may already exist" -ForegroundColor Yellow
     $tempVizId = "temp-viz-fallback"
 }
 
 # Visualization 2: Weather Conditions Pie Chart
-Write-Host "🌤️ Creating weather conditions pie chart..." -ForegroundColor Cyan
+Write-Host "Creating weather conditions pie chart..." -ForegroundColor Cyan
 $weatherVizBody = @{
     attributes = @{
         title = "Vienna Weather Conditions Distribution"
@@ -202,9 +202,9 @@ $weatherVizBody = @{
 try {
     $weatherVizResult = Invoke-RestMethod -Uri "http://localhost:5601/api/saved_objects/lens" -Method POST -Headers $headers -Body $weatherVizBody
     $weatherVizId = $weatherVizResult.id
-    Write-Host "✅ Weather conditions visualization created: $weatherVizId" -ForegroundColor Green
+    Write-Host "Weather conditions visualization created: $weatherVizId" -ForegroundColor Green
 } catch {
-    Write-Host "⚠️ Weather conditions visualization may already exist" -ForegroundColor Yellow
+    Write-Host "Weather conditions visualization may already exist" -ForegroundColor Yellow
     $weatherVizId = "weather-viz-fallback"
 }
 
@@ -256,14 +256,14 @@ $humidityVizBody = @{
 try {
     $humidityVizResult = Invoke-RestMethod -Uri "http://localhost:5601/api/saved_objects/lens" -Method POST -Headers $headers -Body $humidityVizBody
     $humidityVizId = $humidityVizResult.id
-    Write-Host "✅ Humidity visualization created: $humidityVizId" -ForegroundColor Green
+    Write-Host "Humidity visualization created: $humidityVizId" -ForegroundColor Green
 } catch {
-    Write-Host "⚠️ Humidity visualization may already exist" -ForegroundColor Yellow
+    Write-Host "Humidity visualization may already exist" -ForegroundColor Yellow
     $humidityVizId = "humidity-viz-fallback"
 }
 
 # Step 3: Create Dashboard with Visualizations
-Write-Host "🎯 Creating dashboard with visualizations..." -ForegroundColor Cyan
+Write-Host "Creating dashboard with visualizations..." -ForegroundColor Cyan
 
 # Create panels array with our visualizations
 $panels = @(
@@ -351,15 +351,15 @@ $dashboardBody = @{
 
 try {
     $dashboardResult = Invoke-RestMethod -Uri "http://localhost:5601/api/saved_objects/dashboard" -Method POST -Headers $headers -Body $dashboardBody
-    Write-Host "✅ Complete dashboard created with visualizations!" -ForegroundColor Green
+    Write-Host "Complete dashboard created with visualizations!" -ForegroundColor Green
     Write-Host "   Dashboard ID: $($dashboardResult.id)" -ForegroundColor DarkGreen
 } catch {
-    Write-Host "⚠️ Dashboard with visualizations may already exist" -ForegroundColor Yellow
+    Write-Host "Dashboard with visualizations may already exist" -ForegroundColor Yellow
 }
 
 # Final Results
 Write-Host ""
-Write-Host "🎉 Complete Vienna Weather Dashboard Setup Finished!" -ForegroundColor Green
+Write-Host "Complete Vienna Weather Dashboard Setup Finished!" -ForegroundColor Green
 Write-Host "================================================" -ForegroundColor Green
 
 # Check data
@@ -367,14 +367,14 @@ $weatherDataCheck = Invoke-RestMethod -Uri "http://localhost:9200/vienna-weather
 if ($weatherDataCheck -and $weatherDataCheck.count -gt 0) {
     Write-Host "📈 Weather data available: $($weatherDataCheck.count) documents" -ForegroundColor Green
 } else {
-    Write-Host "⚠️ No weather data found yet. Visualizations will populate as data arrives." -ForegroundColor Yellow
+    Write-Host "No weather data found yet. Visualizations will populate as data arrives." -ForegroundColor Yellow
 }
 
 Write-Host ""
-Write-Host "📊 Created Visualizations:" -ForegroundColor Cyan
-Write-Host "   ✅ Temperature Trend (Line Chart)" -ForegroundColor White
-Write-Host "   ✅ Weather Conditions Distribution (Pie Chart)" -ForegroundColor White
-Write-Host "   ✅ Current Humidity Level (Gauge)" -ForegroundColor White
+Write-Host "Created Visualizations:" -ForegroundColor Cyan
+Write-Host "   Temperature Trend (Line Chart)" -ForegroundColor White
+Write-Host "   Weather Conditions Distribution (Pie Chart)" -ForegroundColor White
+Write-Host "   Current Humidity Level (Gauge)" -ForegroundColor White
 
 Write-Host ""
 Write-Host "🌐 Access Your Complete Dashboard:" -ForegroundColor Cyan
@@ -382,7 +382,7 @@ Write-Host "   • Main Dashboard: http://localhost:5601/app/dashboards" -Foregr
 Write-Host "   • Data Explorer: http://localhost:5601/app/discover" -ForegroundColor White
 
 Write-Host ""
-Write-Host "🚀 Dashboard Features:" -ForegroundColor Cyan
+Write-Host "Dashboard Features:" -ForegroundColor Cyan
 Write-Host "   • Auto-refresh every 5 minutes" -ForegroundColor White
 Write-Host "   • Last 24 hours of data" -ForegroundColor White
 Write-Host "   • Pre-built weather visualizations" -ForegroundColor White
