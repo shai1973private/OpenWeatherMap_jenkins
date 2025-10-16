@@ -31,6 +31,7 @@ pipeline {
         skipDefaultCheckout(false)
         timeout(time: 30, unit: 'MINUTES')
         skipStagesAfterUnstable()
+        disableConcurrentBuilds()
     }
     
     triggers {
@@ -58,14 +59,28 @@ pipeline {
                         echo "Workspace cleaned successfully"
                     } catch (Exception e) {
                         echo "Warning: Workspace cleanup had issues: ${e.getMessage()}"
-                        echo "Continuing with build..."
+                        echo "Using alternative cleanup methods..."
                         
-                        // Manual cleanup attempt
+                        // Enhanced manual cleanup with multiple methods
                         bat '''
-                            echo "Attempting manual cleanup..."
-                            timeout /t 2
-                            del /f /s /q . 2>nul || echo "Manual file cleanup completed"
-                            for /d %%i in (*) do rd /s /q "%%i" 2>nul || echo "Manual directory cleanup completed"
+                            echo "Attempting enhanced workspace cleanup..."
+                            
+                            REM Method 1: Standard deletion
+                            del /f /s /q . 2>nul || echo "Standard file cleanup completed"
+                            for /d %%i in (*) do rd /s /q "%%i" 2>nul || echo "Standard directory cleanup completed"
+                            
+                            REM Method 2: Take ownership and force delete
+                            for /d %%i in (*) do (
+                                echo Taking ownership of %%i
+                                takeown /f "%%i" /r /d y 2>nul
+                                icacls "%%i" /grant administrators:F /t 2>nul
+                                rd /s /q "%%i" 2>nul || echo "Could not remove %%i"
+                            )
+                            
+                            REM Method 3: PowerShell cleanup as fallback
+                            powershell -Command "Get-ChildItem -Force | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue"
+                            
+                            echo "Enhanced cleanup completed"
                         '''
                     }
                 }
