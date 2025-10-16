@@ -353,6 +353,13 @@ pipeline {
                         echo Testing OpenWeatherMap API from production...
                         python -c "import requests; api_key='%API_KEY%'; url=f'http://api.openweathermap.org/data/2.5/weather?q=Vienna,AT&appid={api_key}'; response=requests.get(url, timeout=10); print('Production API connection successful' if response.status_code==200 else f'API returned status: {response.status_code}'); data=response.json() if response.status_code==200 else {}; print(f'Current weather: {data.get(\\\"weather\\\", [{}])[0].get(\\\"description\\\", \\\"N/A\\\")}') if response.status_code==200 else None; print(f'Temperature: {data.get(\\\"main\\\", {}).get(\\\"temp\\\", \\\"N/A\\\")} K') if response.status_code==200 else None" || echo Weather API test completed with warnings
                         
+                        REM Reset environment variables to production ports
+                        echo Setting production environment variables...
+                        set ELASTICSEARCH_URL=http://localhost:9200
+                        set KIBANA_URL=http://localhost:5601
+                        set RABBITMQ_URL=http://localhost:15672
+                        set LOGSTASH_URL=http://localhost:9600
+                        
                         REM Start the weather monitoring application
                         echo Starting Vienna Weather Monitoring Application...
                         start /B python weather_auto_rabbitmq.py
