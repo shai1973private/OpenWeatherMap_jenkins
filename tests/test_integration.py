@@ -12,6 +12,28 @@ import subprocess
 from datetime import datetime
 
 
+def get_service_urls():
+    """Get service URLs based on environment (Jenkins vs Local)"""
+    is_jenkins = os.environ.get('JENKINS_URL') is not None or os.environ.get('BUILD_NUMBER') is not None
+    
+    if is_jenkins:
+        # Use Jenkins testing ports
+        return {
+            'elasticsearch': os.getenv('ELASTICSEARCH_URL', 'http://localhost:9201'),
+            'kibana': os.getenv('KIBANA_URL', 'http://localhost:5602'),
+            'rabbitmq': os.getenv('RABBITMQ_URL', 'http://localhost:15673'),
+            'logstash': os.getenv('LOGSTASH_URL', 'http://localhost:9601')
+        }
+    else:
+        # Use production ports for local testing
+        return {
+            'elasticsearch': os.getenv('ELASTICSEARCH_URL', 'http://localhost:9200'),
+            'kibana': os.getenv('KIBANA_URL', 'http://localhost:5601'),
+            'rabbitmq': os.getenv('RABBITMQ_URL', 'http://localhost:15672'),
+            'logstash': os.getenv('LOGSTASH_URL', 'http://localhost:9600')
+        }
+
+
 class TestAPIIntegration:
     """Test integration with OpenWeatherMap API"""
     
@@ -77,7 +99,8 @@ class TestElasticsearchIntegration:
     
     def test_elasticsearch_connectivity(self):
         """Test connectivity to Elasticsearch"""
-        elasticsearch_url = os.getenv('ELASTICSEARCH_URL', 'http://localhost:9200')
+        urls = get_service_urls()
+        elasticsearch_url = urls['elasticsearch']
         
         try:
             response = requests.get(f"{elasticsearch_url}/", timeout=10)
@@ -95,7 +118,8 @@ class TestElasticsearchIntegration:
     
     def test_elasticsearch_cluster_health(self):
         """Test Elasticsearch cluster health"""
-        elasticsearch_url = os.getenv('ELASTICSEARCH_URL', 'http://localhost:9200')
+        urls = get_service_urls()
+        elasticsearch_url = urls['elasticsearch']
         
         try:
             response = requests.get(f"{elasticsearch_url}/_cluster/health", timeout=10)
@@ -150,7 +174,8 @@ class TestKibanaIntegration:
     
     def test_kibana_connectivity(self):
         """Test connectivity to Kibana"""
-        kibana_url = os.getenv('KIBANA_URL', 'http://localhost:5601')
+        urls = get_service_urls()
+        kibana_url = urls['kibana']
         
         try:
             response = requests.get(f"{kibana_url}/api/status", timeout=15)
@@ -171,7 +196,8 @@ class TestRabbitMQIntegration:
     
     def test_rabbitmq_management_api(self):
         """Test RabbitMQ management API"""
-        rabbitmq_url = os.getenv('RABBITMQ_URL', 'http://localhost:15672')
+        urls = get_service_urls()
+        rabbitmq_url = urls['rabbitmq']
         
         try:
             # Test with basic auth (guest/guest)
@@ -251,11 +277,26 @@ class TestEndToEndWorkflow:
     
     def test_full_pipeline_connectivity(self):
         """Test connectivity to all required services"""
-        services = {
-            'Elasticsearch': 'http://localhost:9200/',
-            'Kibana': 'http://localhost:5601/api/status',
-            'RabbitMQ': 'http://localhost:15672/api/overview'
-        }
+        # Check if running in Jenkins environment
+        import os
+        is_jenkins = os.environ.get('JENKINS_URL') is not None or os.environ.get('BUILD_NUMBER') is not None
+        
+        if is_jenkins:
+            # Use Jenkins testing ports
+            services = {
+                'Elasticsearch': 'http://localhost:9201/',
+                'Kibana': 'http://localhost:5602/api/status',
+                'RabbitMQ': 'http://localhost:15673/api/overview'
+            }
+            print("🔧 Jenkins environment detected - using testing ports")
+        else:
+            # Use production ports for local testing
+            services = {
+                'Elasticsearch': 'http://localhost:9200/',
+                'Kibana': 'http://localhost:5601/api/status',
+                'RabbitMQ': 'http://localhost:15672/api/overview'
+            }
+            print("🏠 Local environment detected - using production ports")
         
         results = {}
         
@@ -268,7 +309,8 @@ class TestEndToEndWorkflow:
                 
                 results[service_name] = response.status_code == 200
                 
-            except requests.exceptions.RequestException:
+            except requests.exceptions.RequestException as e:
+                print(f"⚠️  {service_name} connection failed: {e}")
                 results[service_name] = False
         
         # Print results

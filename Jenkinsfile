@@ -185,6 +185,11 @@ pipeline {
                         )
                         
                         REM Run integration tests
+                        REM Set testing environment variables for integration tests
+                        set ELASTICSEARCH_URL=http://localhost:9201
+                        set KIBANA_URL=http://localhost:5602
+                        set RABBITMQ_URL=http://localhost:15673
+                        set LOGSTASH_URL=http://localhost:9601
                         python -m pytest tests\\test_integration.py --junit-xml=test-results\\integration-tests.xml || echo Integration tests completed with warnings
                         
                         echo Unit and integration tests completed
