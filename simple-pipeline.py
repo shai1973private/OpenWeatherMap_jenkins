@@ -154,14 +154,49 @@ class SimpleViennaWeatherPipeline:
             if (self.project_root / ".venv").exists():
                 print("SUCCESS: Virtual environment found")
             
-            # Check required packages
-            required_packages = ["requests", "pika"]
+            # Check and install required packages
+            required_packages = ["requests", "pika", "elasticsearch"]
+            missing_packages = []
+            
             for package in required_packages:
                 try:
                     __import__(package)
                     print(f"SUCCESS: {package} available")
                 except ImportError:
                     print(f"WARNING: {package} not found")
+                    missing_packages.append(package)
+            
+            # Auto-install missing packages
+            if missing_packages:
+                print(f"INFO: Installing missing packages: {', '.join(missing_packages)}")
+                try:
+                    for package in missing_packages:
+                        result = subprocess.run([
+                            "pip", "install", package
+                        ], capture_output=True, text=True)
+                        
+                        if result.returncode == 0:
+                            print(f"SUCCESS: {package} installed successfully")
+                        else:
+                            print(f"WARNING: Failed to install {package}: {result.stderr}")
+                except Exception as e:
+                    print(f"WARNING: Package installation failed: {e}")
+            
+            # Install from requirements.txt if available
+            requirements_file = self.project_root / "requirements.txt"
+            if requirements_file.exists():
+                print("INFO: Installing from requirements.txt...")
+                try:
+                    result = subprocess.run([
+                        "pip", "install", "-r", str(requirements_file)
+                    ], capture_output=True, text=True)
+                    
+                    if result.returncode == 0:
+                        print("SUCCESS: Requirements installed successfully")
+                    else:
+                        print(f"WARNING: Requirements installation had issues: {result.stderr}")
+                except Exception as e:
+                    print(f"WARNING: Requirements installation failed: {e}")
             
             # Check Docker
             try:
@@ -176,6 +211,8 @@ class SimpleViennaWeatherPipeline:
                             print(f"SUCCESS: {container} container running")
                         else:
                             print(f"WARNING: {container} container not found")
+                else:
+                    print("WARNING: Docker not accessible")
                 else:
                     print("WARNING: Docker not accessible")
             except Exception:

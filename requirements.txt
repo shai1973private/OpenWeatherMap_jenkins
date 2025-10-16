@@ -1,0 +1,14 @@
+# Vienna Weather Monitoring System - Python Dependencies
+
+# Core dependencies for weather data collection and processing
+requests>=2.31.0
+pika>=1.3.0
+elasticsearch>=8.0.0
+
+# Optional: Additional useful packages
+urllib3>=2.0.0
+certifi>=2023.0.0
+
+# Note: Docker and PowerShell are system-level dependencies
+# Docker must be installed separately on the target system
+# PowerShell is available by default on Windows systems
