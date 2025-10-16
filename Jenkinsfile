@@ -21,9 +21,9 @@ pipeline {
         RABBITMQ_TEST_URL = 'http://localhost:15673'
         LOGSTASH_TEST_URL = 'http://localhost:9601'
         
-        // Build Information
-        BUILD_VERSION = "${env.BUILD_NUMBER ?: 'unknown'}-${env.GIT_COMMIT?.take(7) ?: 'unknown'}"
-        BUILD_TIMESTAMP = "${new Date().format('yyyyMMdd-HHmmss')}"
+        // Build Information - will be set during pipeline execution
+        BUILD_VERSION = "pending"
+        BUILD_TIMESTAMP = "pending"
     }
     
     options {
@@ -93,9 +93,13 @@ pipeline {
         stage('Clone') {
             steps {
                 script {
+                    // Set build information now that environment is available
+                    env.BUILD_VERSION = "${env.BUILD_NUMBER ?: 'unknown'}-${env.GIT_COMMIT?.take(7) ?: 'unknown'}"
+                    env.BUILD_TIMESTAMP = new Date().format('yyyyMMdd-HHmmss')
+                    
                     echo "Cloning Vienna Weather Monitoring CI/CD Pipeline"
-                    echo "Build: ${BUILD_VERSION}"
-                    echo "Timestamp: ${BUILD_TIMESTAMP}"
+                    echo "Build: ${env.BUILD_VERSION}"
+                    echo "Timestamp: ${env.BUILD_TIMESTAMP}"
                     echo "Branch: ${env.GIT_BRANCH}"
                     echo "Commit: ${env.GIT_COMMIT}"
                 }
@@ -531,7 +535,7 @@ pipeline {
                 echo "   • Dev Tools: http://localhost:5601/app/dev_tools"
                 echo ""
                 echo "Build Information:"
-                echo "   • Version: ${BUILD_VERSION}"
+                echo "   • Version: ${env.BUILD_VERSION}"
                 echo "   • Commit: ${env.GIT_COMMIT}"
                 echo "   • Branch: ${env.GIT_BRANCH}"
                 echo "   • Deployment Time: ${new Date()}"
