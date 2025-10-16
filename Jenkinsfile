@@ -15,6 +15,11 @@ pipeline {
         KIBANA_URL = 'http://localhost:5601'
         RABBITMQ_URL = 'http://localhost:15672'
         
+        // Jenkins Testing URLs (different ports to avoid conflicts)
+        ELASTICSEARCH_TEST_URL = 'http://localhost:9201'
+        KIBANA_TEST_URL = 'http://localhost:5602'
+        RABBITMQ_TEST_URL = 'http://localhost:15673'
+        
         // Build Information
         BUILD_VERSION = "${env.BUILD_NUMBER}-${env.GIT_COMMIT.take(7)}"
         BUILD_TIMESTAMP = bat(script: "@echo off && echo %date:~10,4%%date:~4,2%%date:~7,2%-%time:~0,2%%time:~3,2%%time:~6,2%", returnStdout: true).trim()
@@ -133,18 +138,22 @@ pipeline {
                         
                         REM Start test environment for integration tests
                         echo Starting test environment...
-                        REM Stop any existing containers
+                        REM Stop any existing containers and remove conflicting services
                         docker-compose -f %DOCKER_COMPOSE_JENKINS_FILE% down || echo No containers to stop
+                        
+                        REM Stop any existing Elasticsearch/Kibana that might be using ports
+                        docker stop elasticsearch kibana rabbitmq 2>nul || echo No conflicting containers found
+                        docker rm elasticsearch kibana rabbitmq 2>nul || echo No containers to remove
                         
                         REM Start test environment
                         docker-compose -f %DOCKER_COMPOSE_JENKINS_FILE% up -d
                         
                         REM Wait for services to be ready
                         echo Waiting for services to start...
-                        timeout /t 30 /nobreak >nul
+                        powershell -Command "Start-Sleep -Seconds 30"
                         
                         REM Check service health
-                        curl -f %ELASTICSEARCH_URL%/_cluster/health || (echo Elasticsearch not ready && exit /b 1)
+                        curl -f %ELASTICSEARCH_TEST_URL%/_cluster/health || (echo Elasticsearch not ready && exit /b 1)
                         echo Elasticsearch is ready
                         
                         REM Test RabbitMQ connection
@@ -206,12 +215,14 @@ pipeline {
                         
                         REM Deploy with docker-compose
                         cd deploy
+                        REM Stop any existing services that might conflict
+                        docker stop elasticsearch kibana rabbitmq logstash 2>nul || echo No conflicting containers found
                         docker-compose -f docker-compose.yml down || echo No containers to stop
                         docker-compose -f docker-compose.yml up -d
                         
                         REM Wait for deployment
                         echo Waiting for deployment to complete...
-                        timeout /t 45 /nobreak >nul
+                        powershell -Command "Start-Sleep -Seconds 45"
                         
                         REM Verify deployment
                         echo Verifying deployment...
